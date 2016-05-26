@@ -1,3 +1,13 @@
+# --- external ---
+import numpy as np
+
+# --- internal ---
+import data_tables as DT
+
+# ------- load the global tables -----------
+SE_TABLE  = DT.StellarEvolutionData()
+RAD_TABLE = DT.RadiationData()
+
 class StarParticle:
 
     def __init__(self, M, Z, tform=0.0, id = 0):
@@ -9,10 +19,16 @@ class StarParticle:
         self.tform = tform
         self.id    = id
 
+
         self._assign_properties()
 
-        self.particle_properties = {}
-        self.particle_properties['status'] = ['live']
+        self.properties = {} # constant properties
+        self.properties['status'] = 'live'
+
+        self.abundances        = {} # property of particle
+        self.ejecta_abundances = {} # time varying
+
+       
 
     def evolve(self, t, dt):
         pass
@@ -44,7 +60,7 @@ class Star(StarParticle):
         #
         age = t - self.tform
 
-        if (age + dt > self.lifetime):
+        if (age + dt > self.properties['lifetime']):
             self.particle_properties['status'] = ['dead']
             
             #
@@ -52,6 +68,13 @@ class Star(StarParticle):
             # or remnant
             #
 
+    @property
+    def surface_gravity(self):
+        return const.G * self.properties['M']/self.properties['R']**2
+
+    @property
+    def surface_area(self):
+        return 4.0 * np.pi * self.properties['R']**2
 
     def _assign_properties(self):
 
@@ -59,19 +82,22 @@ class Star(StarParticle):
                   'lifetime'  , 'l_fuv',
                   'l_q1', 'l_q2', 'e_q1', 'e_q2']
 
- #       self._stellar_evolution_grid_position()
-  #      self._radiation_properites_grid_position()
+        # update SE table to handle arrays 
 
+        self.properties['luminosity'] =\
+                   SE_TABLE.interpolate([self.M, self.Z], 'L')
+        self.properties['Teff'] =\
+                   SE_TABLE.interpolate([self.M, self.Z], 'Teff')
+        self.properties['R'] =\
+                   SE_TABLE.interpolate([self.M, self.Z], 'R')
+        self.properties['lifetime'] =\
+                   SE_TABLE.interpolate([self.M, self.Z], 'lifetime')
+        self.properties['age_agb'] =\
+                   SE_table.interpolate([self.M, self.Z], 'age_agb')
+                                                  
+        
     
-    
-        self.L = 1.0
-        self.R = 1.0
-        self.lifetime = 2.5
         self.Mdot_ej = 0.0
-
-    #    self.L        = self.compute_property("luminosity")
-   #     self.R        = self.compute_property("radius")
-     #   self.lifetime = self.compute_property("lifetime")
 
 
 
