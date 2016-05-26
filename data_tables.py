@@ -1,9 +1,12 @@
-"""
-Will contain functions and classes for loading in needed
-data and data tables
-"""
 
+__author__ = "aemerick <emerick@astro.columbia.edu>"
+
+# --- external ---
 from collections import OrderedDict
+import numpy as np
+
+# --- internal ---
+
 
 #
 # need to code this up as a global set in setup.py
@@ -64,25 +67,24 @@ class DataTable:
 
         # obtain interpoaltion coefficients and index for nearest
         # grid points
-        c, id = _interpolation_coefficients(vals, val_arrays, 
+        c, id = cls._interpolation_coefficients(vals, val_arrays, 
                                                   silence, flag, special_errval)
 
         n       = len(vals) # number of dimensions
 
-        if len(c) == 1 and len(id) == 1 and n != 1:
+        if silence:
             # likely got a bad point, check and return flags
-            if silence and c == flag and id == flag:
+            if  c == flag or id == flag:
                 return flag
-            else: # something is wrong if this happens
-                raise RuntimeError 
-        else:
+
+        elif len(c) != n:
             print "interpolation coefficients don't match dimensions - something broke"
             raise RuntimeError # something is wrong
     
         # check if user supplied special errval where grid may exist but 
         # the values are erroneous... Let user know with their provided flag       
         if special_errval != None: 
-            if self._check_for_special_errval(n, id, y, special_errval):
+            if cls._check_for_special_errval(n, id, y, special_errval):
                 return special_flag
 
         # otherwise, actually perform the interpolation
@@ -127,13 +129,13 @@ class DataTable:
 
 
         if n == 1:
-            if y[id[0]] == special_errval or y[id[0]+1] == special_errval:
+            if y[id[0]] == special_errval or y[id[0]+1] == errval:
                 return True
 
         elif n == 2:
 
-            if y[i  ][j  ] == special_errval or y[i  ][j+1] == special_errval or\
-               y[i+1][j+1] == special_errval or y[i+1][j  ] == special_errval:
+            if y[i  ][j  ] == special_errval or y[i  ][j+1] == errval or\
+               y[i+1][j+1] == special_errval or y[i+1][j  ] == errval:
                  
                 return True
 
@@ -141,7 +143,7 @@ class DataTable:
             for k in [0,1]:
                 for j in [0,1]:
                     for i in [0,1]:
-                        if y[id[0] + i][id[1] + j][id[2] + k] == special_errval:
+                        if y[id[0] + i][id[1] + j][id[2] + k] == errval:
                             return True
 
     @classmethod
@@ -154,19 +156,23 @@ class DataTable:
 
         n = len(vals)
 
-        coeff   = np.zeros(n)
-        indeces = np.zeros(n)
+        coeff   = [None]*n
+        indeces = [None]*n
 
         # perform a linear interpolation in each dimension
         for i in np.arange(n):
             coeff[i], indeces[i] = \
-               self._linear_interpolation_coefficients(vals[i], val_arrays[i])
+               cls._linear_interpolation_coefficients(vals[i], val_arrays[i],
+                                                      silence, flag, special_errval)
 
         if silence:
-            if any(coeff) == flag:
-                return flag, flag
+            for i in np.arange(n):
+                if coeff[i] == flag:
+                    return flag, flag
 
-        return coeff, indeces
+        
+
+        return np.array(coeff), np.array(indeces)
 
     @classmethod
     def _linear_interpolation_coefficients(cls, x, xarray, 
@@ -181,7 +187,7 @@ class DataTable:
             if silence:     
                 return flag, flag
 
-            print x, xarray[0], xarray[-1]
+            print "value", x, "off of grid with bounds",  xarray[0], xarray[-1]
             raise ValueError
 
         i = np.abs( x - xarray).argmin()
@@ -192,11 +198,9 @@ class DataTable:
 
         return t, i        
 
-    @property
     def y_names(self):
         return self.y.keys()
 
-    @property
     def y_values(self):
         return self.y.values()
 
@@ -212,7 +216,7 @@ class DataTable:
 class StellarEvolutionData(DataTable):
 
     def __init__(self, manual_table = False):
-        DataTable.__init__("Stellar Evolution Data Table")
+        DataTable.__init__(self, "Stellar Evolution Data Table")
 
         self.ndim = 2
         self.dim_names = ['mass','metallicity']
@@ -222,7 +226,7 @@ class StellarEvolutionData(DataTable):
 
     def read_data(self, data_dir = None):
 
-        if data_dir = None:
+        if data_dir == None:
             self.data_dir = install_dir + 'Data/'
 
         # 
@@ -245,10 +249,11 @@ class StellarEvolutionData(DataTable):
 
 
         # now read in each of the data sets
-        for name in ['L', 'Teff', 'R', 'lifetime', 'agb_age']:
+        for name in ['L', 'Teff', 'R', 'lifetime', 'age_agb']:
 
             self.y[name] = np.zeros(self._array_size)
-            self.y[name] = self.y.reshape( self.nbins.keys() )
+            
+            self.y[name] = (self.y[name]).reshape( tuple(self.nbins.values()) )
 
         # now read in the data
         i = 0; j = 0
@@ -256,10 +261,10 @@ class StellarEvolutionData(DataTable):
         for line in data:
           
             for counter in [0,1,2]: # L T and R are logged - 1st 2 cols are M, Z
-                self.y[ self.y_names[counter]  ][i][j] = 10.0**(line[counter+2])
+                self.y[ self.y_names()[counter]  ][i][j] = 10.0**(line[counter+2])
 
             for counter in [3,4]: # lifetime and agb are not - skip first two cols
-                self.y[ self.y_names[counter]  ][i][j] = line[counter+2]
+                self.y[ self.y_names()[counter]  ][i][j] = line[counter+2]
 
             j = j + 1
             if j >= (self.nbins.values())[1]:
@@ -272,7 +277,7 @@ class StellarEvolutionData(DataTable):
 class RadiationData(DataTable):
 
     def __init__(self, manual_table = False):
-        DataTable.__init__("Radiation data table")
+        DataTable.__init__(self, "Radiation data table")
 
         self.ndim      = 3
         self.dim_names = ['temperature','surface_gravity','metallicity']
@@ -290,7 +295,7 @@ class RadiationData(DataTable):
         # hard code this for now, but need to generalize
         self.nbins['temperature']     = 12
         self.nbins['surface_gravity'] = 8
-        self.nbins['metalllicity']    = 10
+        self.nbins['metallicity']    = 10
         self._array_size              = int( np.prod(self.nbins.values()))
 
         # set values for each dimension
@@ -308,7 +313,7 @@ class RadiationData(DataTable):
             self.y[yi] = np.zeros(self._array_size)
             self.y[yi] = self.y[yi].reshape( (self.nbins[self.dim_names[0]],
                                               self.nbins[self.dim_names[1]],
-                                              self.nbins[self.dim_names[2]))
+                                              self.nbins[self.dim_names[2]] ))
 
         #
         # The below is very gross and not generalizeable as is. This should
@@ -318,7 +323,7 @@ class RadiationData(DataTable):
         # now load from each file - 
         # q0 and q1 files atm have reverse ordered metalliciites atm
         # fuv flux file is in value order - this needs to be changes 5/2016
-        for name in self.dim_names:
+        for name in self.y.keys():
             data = np.genfromtxt(self.data_dir + self._data_file_names[name],
                                  usecols=(2,3,4,5,6,7,8,9,10,11))
 
@@ -338,7 +343,7 @@ class RadiationData(DataTable):
                     i = i + 1
 
         # un - log the q values
-        for name in self.dim_names:
+        for name in ['q0','q1']:
             self.y[name] = 10.0**(self.y[name])
 
         # flag FUV values that are off of the grid  
@@ -359,7 +364,7 @@ class RadiationData(DataTable):
                                         special_errval = 0.0)
         elif yname == 'FUV_flux':
 
-            return DataTable.interpoloate(self, vals, yname, silence = silence,
+            return DataTable.interpolate(self, vals, yname, silence = silence,
                                         flag = 'offgrid', special_flag = 'offgrid',
                                         special_errval = -1.0)
 
