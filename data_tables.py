@@ -29,7 +29,7 @@ class DataTable:
     def read_data(self):
         pass
 
-    def interpolate(self, vals, yname, *args, **kwargs):
+    def interpolate(self, vals, ynames, *args, **kwargs):
         """
         Vals is either dict or an ordered list where order
         matches the order of the dimensions in
@@ -47,13 +47,25 @@ class DataTable:
         else:
             vals_list = vals
 
+        single_output = False
+        if isinstance(ynames, basestring):
+            ynames = [ynames]
+            single_output = True
 
-        return self._interpolate(vals_list, self.x.values(), self.y[yname],
-                                            *args, **kwargs)
+        y_list = [ self.y[yname] for yname in ynames ]
 
+        return_list =  self._interpolate(vals_list, self.x.values(), y_list,
+                                                    *args, **kwargs)
+        if single_output:
+            if isinstance(return_list, basestring):
+                return return_list
+            else:
+                return return_list[0]
+        else:
+            return return_list
 
     @classmethod
-    def _interpolate(cls, vals, val_arrays, y, silence = False,
+    def _interpolate(cls, vals, val_arrays, y_list, silence = False,
                            flag = "offgrid", special_errval = None, special_flag = 'errval'):
         """
         Interpolate along an n+1 axis (y) that is a function of
@@ -80,44 +92,53 @@ class DataTable:
         elif len(c) != n:
             print "interpolation coefficients don't match dimensions - something broke"
             raise RuntimeError # something is wrong
-    
-        # check if user supplied special errval where grid may exist but 
-        # the values are erroneous... Let user know with their provided flag       
-        if special_errval != None: 
-            if cls._check_for_special_errval(n, id, y, special_errval):
-                return special_flag
 
-        # otherwise, actually perform the interpolation
+        return_list = [None] * len(y_list)    
+        count = 0
 
-        if n == 1: # linear interpolation
+        for y in y_list:
+            # check if user supplied special errval where grid may exist but 
+            # the values are erroneous... Let user know with their provided flag       
+            if special_errval != None: 
+                if cls._check_for_special_errval(n, id, y, special_errval):
+                    return_list[count] =  special_flag
+                    count = count + 1
+                    break 
 
-            yval = (1.0 - c[0]) * y[id[0]] + (c[0]) * y[id[0]]
+            # otherwise, actually perform the interpolation
 
-        elif n == 2: # bilinear interpolation
-            i,j = id
+            if n == 1: # linear interpolation
 
-            yval = (1.0 - c[0]) * (1.0 - c[1]) * y[i  ][j  ] +\
-                   (1.0 - c[0]) * (      c[1]) * y[i  ][j+1] +\
-                   (      c[0]) * (      c[1]) * y[i+1][j+1] +\
-                   (      c[0]) * (1.0 - c[1]) * y[i+1][j  ]
+                yval = (1.0 - c[0]) * y[id[0]] + (c[0]) * y[id[0]]
 
-        elif n == 3: # trilinear interpolation
-            i,j,k = id
+            elif n == 2: # bilinear interpolation
+                i,j = id
 
-            yval = (1.0 - c[0])*(1.0 - c[1])*(1.0 - c[2]) * y[i  ][j  ][k  ] +\
-                   (1.0 - c[0])*(      c[1])*(1.0 - c[2]) * y[i  ][j+1][k  ] +\
-                   (      c[0])*(      c[1])*(1.0 - c[2]) * y[i+1][j+1][k  ] +\
-                   (      c[0])*(1.0 - c[1])*(1.0 - c[2]) * y[i+1][j  ][k  ] +\
-                   (1.0 - c[0])*(1.0 - c[1])*(      c[2]) * y[i  ][j  ][k+1] +\
-                   (1.0 - c[0])*(      c[1])*(      c[2]) * y[i  ][j+1][k+1] +\
-                   (      c[0])*(      c[1])*(      c[2]) * y[i+1][j+1][k+1] +\
-                   (      c[0])*(1.0 - c[1])*(      c[2]) * y[i+1][j  ][k+1]
+                yval = (1.0 - c[0]) * (1.0 - c[1]) * y[i  ][j  ] +\
+                       (1.0 - c[0]) * (      c[1]) * y[i  ][j+1] +\
+                       (      c[0]) * (      c[1]) * y[i+1][j+1] +\
+                       (      c[0]) * (1.0 - c[1]) * y[i+1][j  ]
+ 
+            elif n == 3: # trilinear interpolation
+                i,j,k = id
 
-        elif n > 3: # does not support degree above 3
-            print "We do not support n > 3 dimensional interpolation"
-            raise RuntimeError
+                yval = (1.0 - c[0])*(1.0 - c[1])*(1.0 - c[2]) * y[i  ][j  ][k  ] +\
+                       (1.0 - c[0])*(      c[1])*(1.0 - c[2]) * y[i  ][j+1][k  ] +\
+                       (      c[0])*(      c[1])*(1.0 - c[2]) * y[i+1][j+1][k  ] +\
+                       (      c[0])*(1.0 - c[1])*(1.0 - c[2]) * y[i+1][j  ][k  ] +\
+                       (1.0 - c[0])*(1.0 - c[1])*(      c[2]) * y[i  ][j  ][k+1] +\
+                       (1.0 - c[0])*(      c[1])*(      c[2]) * y[i  ][j+1][k+1] +\
+                       (      c[0])*(      c[1])*(      c[2]) * y[i+1][j+1][k+1] +\
+                       (      c[0])*(1.0 - c[1])*(      c[2]) * y[i+1][j  ][k+1]
 
-        return yval
+            elif n > 3: # does not support degree above 3
+                print "We do not support n > 3 dimensional interpolation"
+                raise RuntimeError
+
+            return_list[count] = yval
+            count = count + 1
+
+        return return_list
 
     @classmethod
     def _check_for_special_errval(cls, n, id, y, errval):
@@ -352,22 +373,39 @@ class RadiationData(DataTable):
         return None
 
 
-    def interpolate(self, vals, yname, silence = None):
+    def interpolate(self, vals, ynames, silence = None):
 
         if silence == None: # default behavior is ignore off grid values 
             silence = True  # this usualy means radiation should be computed some other way
 
-        if yname == 'q0' or yname == 'q1':
+        single_output = False
+        if isinstance(ynames, basestring):
+            ynames = [ynames]
+            single_output = True
 
-            return DataTable.interpolate(self, vals, yname, silence = silence,
-                                        flag = 'offgrid', special_flag = 'offgrid',
-                                        special_errval = 0.0)
-        elif yname == 'FUV_flux':
+        count = 0
+        return_list = [None] * len(ynames)
+        for yname in ynames:
 
-            return DataTable.interpolate(self, vals, yname, silence = silence,
-                                        flag = 'offgrid', special_flag = 'offgrid',
-                                        special_errval = -1.0)
+            if yname == 'q0' or yname == 'q1':
 
+                return_list[count] =  DataTable.interpolate(self, vals, yname, silence = silence,
+                                            flag = 'offgrid', special_flag = 'offgrid',
+                                            special_errval = 0.0)
+            elif yname == 'FUV_flux':
+    
+                return_list[count] =  DataTable.interpolate(self, vals, yname, silence = silence,
+                                            flag = 'offgrid', special_flag = 'offgrid',
+                                            special_errval = -1.0)
+            count = count + 1
+
+        if single_output:
+            if isinstance(return_list, basestring):
+                return return_list
+            else:
+                return return_list[0]
+        else:
+            return return_list
 
     
 # # #  do the below in the star... probably shouldnt be handled by the table class
