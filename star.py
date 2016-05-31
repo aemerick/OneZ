@@ -3,6 +3,7 @@ __author__ = "aemerick <emerick@astro.columbia.edu>"
 
 # --- external ---
 import numpy as np
+import gc
 
 # --- internal ---
 import data_tables as DT
@@ -126,24 +127,18 @@ class Star(StarParticle):
 
         # update SE table to handle arrays 
 
-        self.properties['luminosity'] = const.Lsun *\
-                   SE_TABLE.interpolate([self.M, self.Z], 'L')
-        self.properties['Teff'] =\
-                   SE_TABLE.interpolate([self.M, self.Z], 'Teff')
-        self.properties['R'] =\
-                   SE_TABLE.interpolate([self.M, self.Z], 'R')
-        self.properties['lifetime'] =\
-                   SE_TABLE.interpolate([self.M, self.Z], 'lifetime')
-        self.properties['age_agb'] =\
-                   SE_TABLE.interpolate([self.M, self.Z], 'age_agb')
-                                                  
         
-        Q0  = RAD_TABLE.interpolate([self.properties['Teff'], self.surface_gravity(),
-                                    self.Z], 'q0')
-        Q1  = RAD_TABLE.interpolate([self.properties['Teff'], self.surface_gravity(),
-                                    self.Z], 'q1')
-        FUV = RAD_TABLE.interpolate([self.properties['Teff'], self.surface_gravity(),
-                                    self.Z], 'FUV_flux')
+
+        self.properties['luminosity'],
+        self.properties['Teff', self.properties['R'],
+        self.properties['lifetime'], self.properties['age_agb'] =\
+                SE_TABLE.interpolate([self.M,self.Z], ['L','Teff','R','lifetime','age_agb'])
+        self.properties['luminosity'] *= const.Lsun
+
+        Q0, Q1, FUV = RAD_TABLE.interpolate([self.properties['Teff'],
+                                             self.surface_gravity(),
+                                             self.Z], ['q0','q1','FUV_flux'])
+        
         E0  = rad.average_energy(const.E_HI/ const.eV_erg, self.properties['Teff'])
         E1  = rad.average_energy(const.E_HeI/const.eV_erg, self.properties['Teff'])
 
@@ -178,11 +173,67 @@ class Star(StarParticle):
         self.Mdot_ej = 0.0
 
 
+class StarList:
+
+    def __init__(self, maximum_stars = None, conserve_memory = False):
+                          #
+        if maximum_stars != None and conserve_memory:
+            self.stars = [None] * maximum_stars
+        else:
+            self.stars          = []
+
+        if maximum_stars == None:
+            maximum_stars = 1.0E99
+
+        self._maximum_stars = maximum_stars
+
+        self._conserve_memory = conserve_memory
 
 
-#def WhiteDwarf(StarParticle):
+    def evolve(self, t, dt):
+        map( lambda x : x.evolve(t, dt), self.stars)
+        return
 
+    def append(self, new_star):
+        # apparently a possible bug in appending objects to list with gc
+        gc.disabe()
+        self.stars.append(new_star)
+        gc.enable()
+        return
 
+    def property_asarray(self, name, star_type = 'all'):
+
+        if not star_type == 'all': # only look over a subselection of stars
+            _star_subset = [x for x in self.stars if x.startype == star_type]
+        
+        if name == 'mass' or name == 'Mass' or name == 'M':
+            array = np.asarray( [x.M for x in _star_subset])
+        elif name == 'Z' or name == 'metallicity' or name == 'Metallicity':
+            array = np.asarray( [x.Z for x in _star_subset])
+        elif name == 'Mdot_ej':
+            array = np.asarray( [x.Mdot_ej for x in _star_subset] )
+        elif name == 'id':
+            array = np.asarray( [x.id for x in _star_subset])
+        elif hasattr(_star_subset[0], name):
+            array = np.asarray( [x.properties[name] for x in _star_subset] )
+        else:
+            print name, "star property or value not understood for " + star_type + " stars"
+            raise KeyError
+        
+        return array
+        
+
+    def Z(self):
+        """
+        List comprehension to return all metallicities as numpy array
+        """
+        return np.asarray([x.Z for x in self.stars])
+
+    def M(self):
+        """
+        List comprehension to return all masses as np array
+        """
+        return np.asarray([x.M for x in self.stars])
     
 
 
