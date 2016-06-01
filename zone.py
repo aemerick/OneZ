@@ -22,10 +22,15 @@ from constants import CONST as const
 class Zone:
 
     def __init__(self, M_gas = None, M_DM = None):
+
+        # important values and stars
         self.M_gas = M_gas
         self.M_DM  = M_DM
-        self.stars = []
-        self.Z     = 0.001
+        self.all_stars = star.StarList()
+        self.Z         = 0.001
+
+        self.initial_abundances = OrderedDict()
+        self.species_masses     = OrderedDict()
 
         self.imf = imf.salpeter()
 
@@ -48,6 +53,51 @@ class Zone:
         self._set_default_parameters()
         self._summary_data = {}
         self.Mdot_ej = 0.0
+        self.Mdot_ej_abundances = OrderedDict()
+        self.SN_ej_abundances   = OrderedDict()
+
+        self.N_SNIa = 0
+        self.N_SNII = 0
+
+    def set_initial_abundances(self, elements, abundances = None):
+        """
+        Set initial abundances using a list of desired elements and 
+        associated abundances. If no abundances are provided, all are
+        set to zero except H and He. Abundances dict does not have to be 
+        complete
+        """
+        self.initial_abundances = OrderedDict()
+        if abundances == None:
+            abundances = {'empty' : 0.0}
+
+        for e in elements:
+            if e in abundances.keys():
+                self.initial_abundances[e] = abundances[e]
+            elif e == 'H':
+                self.initial_abundances[e] = 0.75
+            elif e == 'He':
+                self.initial_abundances[e] = 0.25
+            elif e == 'm_metal':
+                self.initial_abundances[e] = self.Z
+            elif e == 'm_tot':
+                self.initial_abundances[e] = 1.0
+            else:
+                self.initial_abundances[e] = 0.0
+
+
+        for e in self.initial_abundances.keys():
+            self.species_masses[e] = self.M_gas * self.initial_abundances[e]
+
+        return None
+        
+    def _accumulate_new_sn(self):
+        star_type = self.all_stars.property_asarray('type')
+        
+        if np.size(star_type) > 1:
+            self.N_SNII += len( star_type[ star_type == 'new_SNIa_remnant'] )
+            self.N_SNIa += len( star_type[ star_type == 'new_remnant']      )
+        
+        return
 
     def evolve(self, tend):
        """
@@ -63,6 +113,11 @@ class Zone:
  
            self._evolve_stars()
 
+           #
+           # Count number of core collapse and SNIa 
+           #
+           self._accumulate_new_sn()
+
            # step two, compute m_sf
            self._compute_sfr()
            self._compute_outflow()
@@ -70,14 +125,30 @@ class Zone:
 
            # form new stars here
            M_sf = self._make_new_stars()
+           self.M_sf = M_sf
 
-           # step three compute inflow, outflow,
-
+           #
+           # step three compute total inflow, outflow,
+           #
+ 
            self.M_gas += (self.Mdot_in + self.Mdot_ej -\
-                             self.Mdot_out) * self.dt - M_sf
+                          self.Mdot_out) * self.dt - M_sf
 
            if self.M_gas < 0:
                self.M_gas = 0.0
+
+           # 
+           # do the same for abundances
+           #
+           abundances = self.abundances
+           for e in self.species_masses.keys():
+               self.species_masses[e] += (self.Mdot_in  * self.Mdot_in_abundances(e) +\
+                                          self.Mdot_ej  * self.Mdot_ej_abundances[e] +\
+                                          self.Mdot_out * abundances[e]) * self.dt -\
+                                          self.M_sf * abundances[e] + self.SN_ej_abundances[e]
+
+           self._update_metallicity()
+           # compute abundances
 
            self.t += self.dt
            self._cycle_number += 1      
@@ -85,29 +156,76 @@ class Zone:
            # check output condition
            self._check_output()
 
+    def _update_metallicity(self):
+    
+        self.Z = self.species_masses['m_metal'] / self.M_gas
+
+        return
+
+    @property
+    def abundances(self):
+        abund = {}
+
+        for x in self.species_masses.keys():
+            abund[x] = self.species_masses[x] / self.M_gas
+
+        return abund
+
+    def Mdot_in_abundances(self, e):
+        if e == 'H':
+            abund = 0.75
+        elif e == 'He':
+            abund = 0.25
+        else:
+            abund = 0.0
+
+        return abund
+    
+    @property
+    def N_stars(self):
+        return np.size(self.all_stars.stars)
+
+    @property
+    def M_stars(self):
+        self._M_stars
+        return np.sum(self.all_stars.M)
 
     def _evolve_stars(self):
 
         # advance each star one timestep using
-        map( lambda x : x.evolve(self.t, self.dt), self.stars)
+        self.all_stars.evolve(self.t, self.dt)
 
         self.Mdot_ej = 0.0
-        self.Mdot_ej = np.sum([x.Mdot_ej for x in self.stars])
+        self.Mdot_ej = np.sum( self.all_stars.property_asarray('Mdot_ej') )
+
+        for e in self.species_masses.keys():
+            #
+            # add wind ejecta abundaces from "stars" and stars that may have formed SN
+            # but were alive for part of timestep.
+            #
+            self.Mdot_ej_abundances[e]  = np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'star'))
+            self.Mdot_ej_abundances[e] += np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'new_WD'))
+            self.Mdot_ej_abundances[e] += np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'new_remnant'))
+            self.Mdot_ej_abundances[e] *= 1.0E6 * const.yr_to_s
+
+            self.SN_ej_abundances[e]   = np.sum(self.all_stars.species_asarray('SN_ej_' + e, 'new_SNIa_remnant'))
+            self.SN_ej_abundances[e]  += np.sum(self.all_stars.species_asarray('SN_ej_' + e, 'new_remnant'))
+
+
         self.Mdot_ej = self.Mdot_ej * 1.0E6 * const.yr_to_s # msun / myr
 
     def _make_new_stars(self):
         
         # given SFR and gas resivoir
         M_sf = self.dt * self.Mdot_sf
-
         # sample from IMF until M_sf is reached
         star_masses = self.imf.sample(M = M_sf)
 
         M_sf = np.sum(star_masses)
 
         for m in star_masses:
-            self.stars.append( star.Star(m, self.Z, tform = self.t,
-                                               id=self._assign_particle_id()))
+            self.all_stars.append( star.Star(m, self.Z, self.abundances,
+                                             tform=self.t, id=self._assign_particle_id()))
 
         return M_sf
 
@@ -179,27 +297,35 @@ class Zone:
 
         self._summary_data = OrderedDict()
 
-        star_parse = lambda name: [x.properties[name] for x in self.stars]
-        sum_parse  = lambda name: np.sum(star_parse(name))
 
         self._summary_data['t']       = self.t
 
         self._summary_data['M_gas']   = self.M_gas
         self._summary_data['M_DM']    = self.M_DM
+        self._summary_data['M_star']  = np.sum(self.all_stars.M())       
 
         self._summary_data['Z_gas']   = self.Z
-        self._summary_data['Z_star']  = np.average( [x.Z for x in self.stars])
+        self._summary_data['Z_star']  = np.average( self.all_stars.Z() )
 
-        M                             = [x.M for x in self.stars]
-        self._summary_data['M_star']  = np.sum(M)
-        self._summary_data['N_star']  = np.size(M)
-        self._summary_data['Mdot_ej'] = np.sum([x.Mdot_ej for x in self.stars])
+        self._summary_data['N_star']  = len(self.all_stars.stars)
 
+        self._summary_data['N_SNIa']  = self.N_SNIa
+        self._summary_data['N_SNII']  = self.N_SNII
 
-        self._summary_data['L_FUV'] = sum_parse('L_FUV')
-        self._summary_data['Q0']    = sum_parse('Q0')
-        self._summary_data['Q1']    = sum_parse('Q1')
+        sum_names = ['Mdot_ej', 'L_FUV', 'Q0', 'Q1']
+        for n in sum_names:
+            self._summary_data[n] = np.sum(self.all_stars.property_asarray(n))
 
+        self._summary_data['L_Q0'] = np.sum(self.all_stars.property_asarray('Q0') * self.all_stars.property_asarray('E0'))
+        self._summary_data['L_Q1'] = np.sum(self.all_stars.property_asarray('Q1') * self.all_stars.property_asarray('E1'))
+
+        # now do all of the abundances
+        
+        for e in self.abundances.keys():
+
+            self._summary_data[e] = self.abundances[e]
+
+        return 
 
     def _write_summary_output(self):
 

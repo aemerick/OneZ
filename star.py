@@ -16,9 +16,12 @@ from constants import CONST as const
 SE_TABLE  = DT.StellarEvolutionData()
 RAD_TABLE = DT.RadiationData()
 
+SN_YIELD_TABLE = DT.StellarYieldsTable('SNII')
+WIND_YIELD_TABLE = DT.StellarYieldsTable('wind')
+
 class StarParticle:
 
-    def __init__(self, M, Z, tform=0.0, id = 0):
+    def __init__(self, M, Z, abundances=None, tform=0.0, id = 0):
 
         self.M   = M
         self.M_o = M
@@ -29,10 +32,21 @@ class StarParticle:
 
 
         self.properties = {} # constant properties
-        self.properties['status'] = 'live'
+        self.properties['type'] = 'star'
 
-        self.abundances        = {} # property of particle
-        self.ejecta_abundances = {} # time varying
+        if not abundances == None:
+            self.abundances = abundances
+            self.wind_ejecta_abundances = {}
+            self.sn_ejecta_abundances = {}
+            for e in self.abundances.keys():
+                self.wind_ejecta_abundances[e] = 0.0
+                self.sn_ejecta_abundances[e]  = 0.0
+
+
+        else:
+            self.abundances             = {} # property of particle
+            self.wind_ejecta_abundances = {} # time varying
+            self.sn_ejecta_abundances   = {} # constant (only go SN once)
 
        
 
@@ -51,6 +65,8 @@ class Star(StarParticle):
     def __init__(self, *args, **kwargs):
         StarParticle.__init__(self, *args, **kwargs)
 
+
+
         self._assign_properties()
 
     def evolve(self, t, dt):
@@ -58,26 +74,101 @@ class Star(StarParticle):
         Evolve the star
         """
 
+        age = t - self.tform
+
         #
         # check and update Mdot_ej from stellar winds
         #
-        self.stellar_wind_parameters()
+        self.Mdot_ej = 0.0
+        self.stellar_wind_parameters(age, dt)
         self.Mdot_ej = self.properties['Mdot_wind']
 
-        #
-        # check age
-        #
-        age = t - self.tform
+        SN_mass_loss = 0.0
 
         if (age + dt > self.properties['lifetime']):
-            self.properties['status'] = ['dead']
 
-            
-            
-            #
-            # conditional statements to turn particle into WD
-            # or remnant
-            #
+            if 'new' in self.properties['type']:
+                #
+                # star changed types in previous timestep, update to "old"
+                # and do nothing else
+                #
+                self.properties['type'] = self.properties['type'].replace('new_','')
+
+            if self.M > 8.0:
+                #
+                # Core collapse supernova - change type and compute yields
+                #
+                self.set_SNII_properties()
+                self.properties['type'] = 'new_remnant'
+                SN_mass_loss = self.sn_ejecta_abundances['m_tot']
+            else:
+                #
+                # Otherwise, form a white dwarf when dead and label as
+                # candidate for future SNIa
+                #
+                self.M = phys.white_dwarf_mass(self.Mo)
+                self.properties['type']               = 'new_WD'
+
+                if self.M_o > 3.0 and self.M_o < 8.0:
+                    self.properties['SNIa_candidate'] = True
+                    self.properties['PSNIa']          = 0.0 # initialize prob of going SNIa
+                else:
+                    self.properties['SNIa_candidate'] = False
+
+            # if this is a WD, need to check and see if it will explode            
+            if self.properties['type'] == 'WD':
+                if self.properties['SNIa_candidate']:
+                    self.properties['PSNIa'] = dt * phys.SNIa_probability(self.M, t,
+                                                                     self.t_form,
+                                                                     self.properties['lifetime'])
+
+                    if self.properties['PSNIa'] * dt > np.random.rand():
+
+                        # go Type Ia supernova
+                        self.properties['type'] = 'new_SNIa_remnant'
+                        self.set_SNIa_properties()
+                        SN_mass_loss = self.sn_ejecta_abundances['m_tot']
+
+        #
+        # Compute total mass lost through supernova and wind
+        #
+        M_loss = self.Mdot_ej * dt + SN_mass_loss
+        
+        # update mass
+        self.M = self.M - M_loss
+
+        if self.M <= 0.0:
+            print "ERROR IN STAR: Negative or zero stellar mass"
+            raise RuntimeError
+
+        return None
+    def set_SNIa_properties(self):
+        # need to rename and combine this and functions below
+
+        if len(self.abundances.keys() > 0):
+            yields = phys.SNIa_yields(self.abundances.keys())
+
+            i = 0
+            for e in self.sn_ejecta_abundances.keys():
+                self.sn_ejecta_abundances[e] = yields[i]
+
+        else:
+            return NotImplementedError
+
+        return yields
+
+    def set_SNII_properties(self):
+
+        if len(self.abundances.keys() > 0):
+            yields =  SN_YIELD_TABLE.interpolate([self.M_o, self.Z],
+                                                  self.abundances.keys())
+
+            i = 0
+            for e in self.sn_ejecta_abundances.keys():
+                self.sn_ejecta_abundances[e] = yields[i]
+
+        else:
+            raise NotImplementedError
 
     def mechanical_luminosity(self):
         return self.properties['Mdot_wind'] * const.Msun * self.properties['v_wind']**2
@@ -107,16 +198,69 @@ class Star(StarParticle):
         else:
             return 0.0
 
-    def stellar_wind_parameters(self, mode = None):
+    def stellar_wind_parameters(self, age, dt):
 
-        Mdot  = phys.s99_wind_mdot(self.properties['luminosity'], self.M_o,
-                                  self.properties['Teff'], self.Z)
+        if len(self.abundances.keys()) > 0:
+            # need to compute wind velocities for all stars
+            # check if star's wind is ON
+            do_wind = True
+
+            if self.M < 8.0:
+                if age < self.properties['age_agb']:
+                    do_wind = False
+                    wind_lifetime = 0.0
+                else:
+                    wind_lifetime = self.properties['lifetime'] - self.properties['age_agb']
+             
+            else:
+              
+                wind_lifetime = self.properties['lifetime']
+
+            if wind_lifetime < dt:
+                wind_lifetime = dt
+
+            if do_wind and age < self.properties['lifetime']:           
+                yields = self.compute_stellar_wind_yields()
+
+                yields = yields / wind_lifetime
+
+                
+            else:
+                yields = np.zeros(len(self.abundances.keys()))
+                Mdot   = 0.0
+
+            i = 0
+            for e in self.wind_ejecta_abundances.keys():
+                self.wind_ejecta_abundances[e] = yields[i]
+                i = i + 1
+
+
+            Mdot = self.wind_ejecta_abundances['m_tot']
+            # this is terrible terrible coding
+            if(self.wind_ejecta_abundances['m_tot'] > 0.0):
+                for e in self.wind_ejecta_abundances.keys():
+                    self.wind_ejecta_abundances[e] /= self.wind_ejecta_abundances['m_tot']
+                
+
+        else:
+
+            Mdot  = phys.s99_wind_mdot(self.properties['luminosity'], self.M_o,
+                                      self.properties['Teff'], self.Z)
+
+
         vwind = phys.s99_wind_velocity( self.properties['luminosity'], self.M_o,
                                         self.properties['Teff'], self.Z)
+
 
         self.properties['Mdot_wind'] = Mdot
         self.properties['v_wind']    = vwind
 
+    def compute_stellar_wind_yields(self):
+        yields = np.asarray(WIND_YIELD_TABLE.interpolate([self.M_o, self.Z],
+                                                          self.abundances.keys()))
+
+
+        return np.asarray(yields)
 
 
     def _assign_properties(self):
@@ -126,14 +270,13 @@ class Star(StarParticle):
                   'Q1', 'Q2', 'E_Q1', 'E_Q2']
 
         # update SE table to handle arrays 
-
         
-
-        self.properties['luminosity'],
-        self.properties['Teff', self.properties['R'],
-        self.properties['lifetime'], self.properties['age_agb'] =\
-                SE_TABLE.interpolate([self.M,self.Z], ['L','Teff','R','lifetime','age_agb'])
-        self.properties['luminosity'] *= const.Lsun
+        L, T, R, lifetime, age_agb = SE_TABLE.interpolate([self.M,self.Z], ['L','Teff','R','lifetime','age_agb'])
+        self.properties['luminosity']  = L * const.Lsun
+        self.properties['Teff']        = T
+        self.properties['R']           = R
+        self.properties['lifetime']    = lifetime
+        self.properties['age_agb']     = age_agb
 
         Q0, Q1, FUV = RAD_TABLE.interpolate([self.properties['Teff'],
                                              self.surface_gravity(),
@@ -196,16 +339,25 @@ class StarList:
 
     def append(self, new_star):
         # apparently a possible bug in appending objects to list with gc
-        gc.disabe()
+        gc.disable()
         self.stars.append(new_star)
         gc.enable()
         return
 
     def property_asarray(self, name, star_type = 'all'):
 
-        if not star_type == 'all': # only look over a subselection of stars
-            _star_subset = [x for x in self.stars if x.startype == star_type]
+        if len(self.stars) == 0:
+            return 0.0
         
+        if not star_type == 'all': # only look over a subselection of stars
+            _star_subset = [x for x in self.stars if x.properties['type']== star_type]
+        else:
+            _star_subset = self.stars        
+
+        if len(_star_subset) == 0:
+            return np.asarray(0.0)
+
+
         if name == 'mass' or name == 'Mass' or name == 'M':
             array = np.asarray( [x.M for x in _star_subset])
         elif name == 'Z' or name == 'metallicity' or name == 'Metallicity':
@@ -214,7 +366,7 @@ class StarList:
             array = np.asarray( [x.Mdot_ej for x in _star_subset] )
         elif name == 'id':
             array = np.asarray( [x.id for x in _star_subset])
-        elif hasattr(_star_subset[0], name):
+        elif name in self.property_names('shared', star_type):
             array = np.asarray( [x.properties[name] for x in _star_subset] )
         else:
             print name, "star property or value not understood for " + star_type + " stars"
@@ -222,6 +374,59 @@ class StarList:
         
         return array
         
+    def property_names(self, mode='unique', star_type = 'all'):
+        if len(self.stars) == 0:
+            return None
+
+        if not star_type == 'all':
+            _star_subset = [x for x in self.stars if x.properties['type'] == star_type]
+        else:
+            _star_subset = self.stars
+
+        all_keys = [x.properties.keys() for x in _star_subset]
+        unique_keys = np.unique([item for sublist in all_keys for item in sublist])
+
+        if mode == 'unique':   # get all unique keys from all stars in set
+            return unique_keys 
+        elif mode == 'shared': # get only properties shared among all stars in set
+            i = 0
+            return np.unique([element for element in unique_keys if element in all_keys[i] for i in np.arange(0,len(all_keys))])
+
+
+    def species_asarray(self, name, star_type = 'all'):
+        """
+        Return either the ejecta rates or chemical tags for stars as array
+        """
+
+        if not star_type == 'all':
+            _star_subset = [x for x in self.stars if x.properties['type'] == star_type]
+        else:
+            _star_subset = self.stars
+
+        if len(_star_subset) == 0:
+            return np.zeros(len(name))
+
+        if 'Mdot' in name:
+            if 'ej' in name:
+                name = name.replace('Mdot_ej_','')
+            else:
+                name = name.replace('Mdot_','')
+
+            func = lambda x , y : x.wind_ejecta_abundances[y]
+
+        elif 'SN' in name:
+            if 'ej' in name:
+                name = name.replace('SN_ej_','')
+            else:
+                name = name.replace('SN_','')
+
+            func = lambda x, y : x.sn_ejecta_abundances[y]
+
+        else:
+            func = lambda x, y : x.abundances[y]
+
+        return np.asarray([ func(x, name) for x in self.stars])
+
 
     def Z(self):
         """
