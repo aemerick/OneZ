@@ -104,7 +104,6 @@ class DataTable:
                     return_list[count] =  special_flag
                     count = count + 1
                     break 
-
             # otherwise, actually perform the interpolation
 
             if n == 1: # linear interpolation
@@ -408,22 +407,67 @@ class RadiationData(DataTable):
             return return_list
 
     
-# # #  do the below in the star... probably shouldnt be handled by the table class
-#        if not interp_value == 'offgrid':
- #           return interp_value
-  ##      elif allow_black_body == False:
-    #        print "Radiation point off of interpolation grid and black body fix is turned off"
-     #       print "either fix data table, interpolation point, or allow black body approx"
-      #      raise RuntimeError
+class StellarYieldsTable(DataTable):
 
-        # if we are here then use the black body approximation
-
-   #     if yname == 'q0' or yname == 'q1':
+    def __init__(self, yield_type, name = None, manual_table = False):
+        
+        if yield_type == 'SNII' and name == None:
+            name = 'SNII Stellar Yields Table'
+        elif yield_type == 'wind' and name == None:
+            name = 'Stellar Winds Stellar Yields Table'
+        elif yield_type == None:
+            print "Error must set a yiled type as either SNII or wind"
+            raise RuntimeError
 
         
+        DataTable.__init__(self, name)
+
+        self.ndim = 2
+        self.dim_names = ['mass', 'metallicity']
+
+        if not manual_table:
+            self.read_data(yield_type)
+
+    def read_data(self, yield_type, data_dir = None):
+        if data_dir == None:
+            self.data_dir = install_dir + 'Data/'
+        if yield_type == 'SNII':
+            filename = 'stellar_yields.in'
+        else:
+            filename = 'stellar_yields_winds.in'
+       
+        tmp_data = np.genfromtxt(self.data_dir + filename, usecols = (0,1), names=True)
+
+        self.x['mass']        = np.unique( tmp_data['M'] )
+        self.x['metallicity'] = np.unique( tmp_data['Z'] )
+
+        self.nbins['mass']        = np.size(self.x['mass'])
+        self.nbins['metallicity'] = np.size(self.x['metallicity'])
+
+        self._array_size = int( np.prod(self.nbins.values()))
+
+        data   = np.genfromtxt(self.data_dir + filename, usecols=np.arange(2,87), names=True)
+
+        for element in list(data.dtype.names):
+            self.y[element]   = data[element].reshape(tuple(self.nbins.values()))
+
+        return None
 
 
-    #    elif yname == 'FUV_flux':
+    def interpolate(self, vals, ynames, silence = True):
+        output = DataTable.interpolate(self, vals,ynames,silence)
 
-        
+        out_of_bounds = False
+        if not isinstance(output, basestring):
+            for a in output:
+                if a == 'offgrid':
+                    out_of_bounds = True
+                    break
+        else:
+            if output == 'offgrid':
+                out_of_bounds = True
+          
+        if out_of_bounds:
+            output = np.zeros(len(ynames))
 
+        return output
