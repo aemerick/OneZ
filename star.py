@@ -148,7 +148,7 @@ class Star(StarParticle):
     def set_SNIa_properties(self):
         # need to rename and combine this and functions below
 
-        if len(self.wind_ejecta_abundances.keys() > 0):
+        if len(self.wind_ejecta_abundances.keys()) > 0:
             yields = phys.SNIa_yields(self.wind_ejecta_abundances.keys())
 
             i = 0
@@ -162,7 +162,7 @@ class Star(StarParticle):
 
     def set_SNII_properties(self):
 
-        if len(self.wind_ejecta_abundances.keys() > 0):
+        if len(self.wind_ejecta_abundances.keys()) > 0:
             yields =  SN_YIELD_TABLE.interpolate([self.M_o, self.Z],
                                                   self.wind_ejecta_abundances.keys())
 
