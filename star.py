@@ -200,7 +200,7 @@ class Star(StarParticle):
 
     def stellar_wind_parameters(self, age, dt):
 
-        if len(self.abundances.keys()) > 0:
+        if True:
             # need to compute wind velocities for all stars
             # check if star's wind is ON
             do_wind = True
@@ -220,27 +220,9 @@ class Star(StarParticle):
                 wind_lifetime = dt
 
             if do_wind and age < self.properties['lifetime']:           
-                yields = self.compute_stellar_wind_yields()
-
-                yields = yields / wind_lifetime
-
-                
+                Mdot   = self.properties['M_wind_total'] / wind_lifetime                
             else:
-                yields = np.zeros(len(self.abundances.keys()))
                 Mdot   = 0.0
-
-            i = 0
-            for e in self.wind_ejecta_abundances.keys():
-                self.wind_ejecta_abundances[e] = yields[i]
-                i = i + 1
-
-
-            Mdot = self.wind_ejecta_abundances['m_tot']
-            # this is terrible terrible coding
-            if(self.wind_ejecta_abundances['m_tot'] > 0.0):
-                for e in self.wind_ejecta_abundances.keys():
-                    self.wind_ejecta_abundances[e] /= self.wind_ejecta_abundances['m_tot']
-                
 
         else:
 
@@ -314,6 +296,24 @@ class Star(StarParticle):
         self.properties['L_FUV'] = FUV * self.surface_area()
 
         self.Mdot_ej = 0.0
+
+        #
+        # Interpolate and store wind and supernova abundances
+        #
+
+        yields = self.compute_stellar_wind_yields()
+        
+        i = 0 
+        for e in self.wind_ejecta_abundances.keys():
+            self.wind_ejecta_abundances[e] = yields[i]
+            i = i + 1
+
+        # convert to abundances
+        self.properties['M_wind_total'] = self.wind_ejecta_abundances['m_tot']
+        if self.properties['M_wind_total'] > 0.0:
+            for e in self.wind_ejecta_abundances.keys():
+                self.wind_ejecta_abundances[e] /= self.properties['M_wind_total']
+
 
 
 class StarList:

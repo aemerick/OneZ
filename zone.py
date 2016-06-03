@@ -53,7 +53,7 @@ class Zone:
         self._set_default_parameters()
         self._summary_data = {}
         self.Mdot_ej = 0.0
-        self.Mdot_ej_abundances = OrderedDict()
+        self.Mdot_ej_masses = OrderedDict()
         self.SN_ej_abundances   = OrderedDict()
 
         self.N_SNIa = 0
@@ -143,7 +143,7 @@ class Zone:
            abundances = self.abundances
            for e in self.species_masses.keys():
                self.species_masses[e] += (self.Mdot_in  * self.Mdot_in_abundances(e) +\
-                                          self.Mdot_ej  * self.Mdot_ej_abundances[e] +\
+                                          self.Mdot_ej_masses[e] +\
                                           self.Mdot_out * abundances[e]) * self.dt -\
                                           self.M_sf * abundances[e] + self.SN_ej_abundances[e]
 
@@ -196,23 +196,28 @@ class Zone:
         self.all_stars.evolve(self.t, self.dt)
 
         self.Mdot_ej = 0.0
-        self.Mdot_ej = np.sum( self.all_stars.property_asarray('Mdot_ej') )
+        mass_loss_rate = self.all_stars.property_asarray('Mdot_ej') * 1.0E6 * const.yr_to_s
+        self.Mdot_ej = np.sum( mass_loss_rate )
+
+        i = 0
+        
+
 
         for e in self.species_masses.keys():
             #
             # add wind ejecta abundaces from "stars" and stars that may have formed SN
             # but were alive for part of timestep.
             #
-            self.Mdot_ej_abundances[e]  = np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'star'))
-            self.Mdot_ej_abundances[e] += np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'new_WD'))
-            self.Mdot_ej_abundances[e] += np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'new_remnant'))
-            self.Mdot_ej_abundances[e] *= 1.0E6 * const.yr_to_s
+            self.Mdot_ej_masses[e]  = np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'star') * self.all_stars.property_asarray('Mdot_ej','star'))
+            self.Mdot_ej_masses[e] += np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'new_WD')      * self.all_stars.property_asarray('Mdot_ej', 'new_WD'))
+            self.Mdot_ej_masses[e] += np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'new_remnant') * self.all_stars.property_asarray('Mdot_ej','new_remnant'))
+            self.Mdot_ej_masses[e] *= 1.0E6 * const.yr_to_s
 
             self.SN_ej_abundances[e]   = np.sum(self.all_stars.species_asarray('SN_ej_' + e, 'new_SNIa_remnant'))
             self.SN_ej_abundances[e]  += np.sum(self.all_stars.species_asarray('SN_ej_' + e, 'new_remnant'))
+            i = i + 1
 
 
-        self.Mdot_ej = self.Mdot_ej * 1.0E6 * const.yr_to_s # msun / myr
 
     def _make_new_stars(self):
         
