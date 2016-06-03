@@ -418,8 +418,8 @@ class StarList:
         Return either the ejecta rates or chemical tags for stars as array
         """
 
-        if not star_type == 'all':
-            _star_subset = [x for x in self.stars if x.properties['type'] == star_type]
+        if not star_type == 'all': # only look over a subselection of stars
+            _star_subset = [x for x in self.stars if x.properties['type']== star_type]
         else:
             _star_subset = self.stars
 
@@ -445,7 +445,7 @@ class StarList:
         else:
             func = lambda x, y : x.abundances[y]
 
-        return np.asarray([ func(x, name) for x in self.stars])
+        return np.asarray([ func(x, name) for x in _star_subset])
 
 
     def Z(self):
