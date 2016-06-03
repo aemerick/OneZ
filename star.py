@@ -109,7 +109,7 @@ class Star(StarParticle):
                 # Otherwise, form a white dwarf when dead and label as
                 # candidate for future SNIa
                 #
-                self.M = phys.white_dwarf_mass(self.Mo)
+                self.M = phys.white_dwarf_mass(self.M_o)
                 self.properties['type']               = 'new_WD'
 
                 if self.M_o > 3.0 and self.M_o < 8.0:
@@ -187,10 +187,10 @@ class Star(StarParticle):
         """
         zeroes certain properties after star dies
         """
-        zeroed_properites = ['E0', 'E1', 'L_FUV', 'Q0', 'Q1', 'luminosity', 'v_wind',
-                             'Mdot_wind']
+        zero_properties = ['E0', 'E1', 'L_FUV', 'Q0', 'Q1',
+                           'luminosity', 'v_wind', 'Mdot_wind']
 
-        for p in zeroed_properties:
+        for p in zero_properties:
             self.properties[p] = 0.0
 
         return
@@ -215,6 +215,9 @@ class Star(StarParticle):
             return 0.0
 
     def stellar_wind_parameters(self, age, dt):
+
+        if not self.properties['type'] == 'star':
+            return
 
         if True:
             # need to compute wind velocities for all stars
