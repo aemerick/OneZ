@@ -170,6 +170,7 @@ class Star(StarParticle):
         else:
             raise NotImplementedError
 
+    @property
     def mechanical_luminosity(self):
         return self.properties['Mdot_wind'] * const.Msun * self.properties['v_wind']**2
 
@@ -314,7 +315,8 @@ class Star(StarParticle):
             for e in self.wind_ejecta_abundances.keys():
                 self.wind_ejecta_abundances[e] /= self.properties['M_wind_total']
 
-
+        self.properties['Mdot_wind'] = 0.0
+        self.properties['v_wind']    = 0.0
 
 class StarList:
 
@@ -364,13 +366,16 @@ class StarList:
             array = np.asarray( [x.Z for x in _star_subset])
         elif name == 'Mdot_ej':
             array = np.asarray( [x.Mdot_ej for x in _star_subset] )
+        elif name == 'mechanical_luminosity':
+            array = np.asarray( [x.mechanical_luminosity for x in _star_subset])
         elif name == 'id':
             array = np.asarray( [x.id for x in _star_subset])
-        elif name in self.property_names('shared', star_type):
-            array = np.asarray( [x.properties[name] for x in _star_subset] )
         else:
-            print name, "star property or value not understood for " + star_type + " stars"
-            raise KeyError
+            try:
+                array = np.asarray( [x.properties[name] for x in _star_subset] )
+            except KeyError:
+                print name, "star property or value not understood for " + star_type + " stars"
+                raise KeyError
         
         return array
         
