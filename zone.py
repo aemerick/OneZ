@@ -320,6 +320,7 @@ class Zone:
         sum_names = ['Mdot_ej', 'L_FUV', 'Q0', 'Q1']
         for n in sum_names:
             self._summary_data[n] = np.sum(self.all_stars.property_asarray(n))
+
         self._summary_data['L_wind'] = np.sum(self.all_stars.property_asarray('mechanical_luminosity'))
 
         self._summary_data['L_Q0'] = np.sum(self.all_stars.property_asarray('Q0') * self.all_stars.property_asarray('E0'))
