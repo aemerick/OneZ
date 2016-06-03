@@ -85,7 +85,7 @@ class Star(StarParticle):
 
         SN_mass_loss = 0.0
 
-        if (age + dt > self.properties['lifetime']):
+        if (age + dt > self.properties['lifetime'] / (1.0E6 * const.yr_to_s)):
 
             if 'new' in self.properties['type']:
                 #
@@ -93,6 +93,9 @@ class Star(StarParticle):
                 # and do nothing else
                 #
                 self.properties['type'] = self.properties['type'].replace('new_','')
+                self._clear_properties()
+
+
 
             if self.M > 8.0:
                 #
@@ -180,6 +183,18 @@ class Star(StarParticle):
     def surface_area(self):
         return 4.0 * np.pi * self.properties['R']**2
 
+    def _clear_properties(self):
+        """
+        zeroes certain properties after star dies
+        """
+        zeroed_properites = ['E0', 'E1', 'L_FUV', 'Q0', 'Q1', 'luminosity', 'v_wind',
+                             'Mdot_wind']
+
+        for p in zeroed_properties:
+            self.properties[p] = 0.0
+
+        return
+
     def ionizing_photons(self, photon_type):
 
         if not 'q' in photon_type:
@@ -207,11 +222,11 @@ class Star(StarParticle):
             do_wind = True
 
             if self.M < 8.0:
-                if age < self.properties['age_agb']:
+                if age < self.properties['age_agb'] / ( 1.0E6 * const.yr_to_s):
                     do_wind = False
                     wind_lifetime = 0.0
                 else:
-                    wind_lifetime = self.properties['lifetime'] - self.properties['age_agb']
+                    wind_lifetime = (self.properties['lifetime'] - self.properties['age_agb'])
              
             else:
               
