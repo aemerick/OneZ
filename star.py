@@ -4,6 +4,7 @@ __author__ = "aemerick <emerick@astro.columbia.edu>"
 # --- external ---
 import numpy as np
 import gc
+from collections import OrderedDict
 
 # --- internal ---
 import data_tables as DT
@@ -35,18 +36,17 @@ class StarParticle:
         self.properties['type'] = 'star'
 
         if not abundances == None:
-            self.abundances = abundances
-            self.wind_ejecta_abundances = {}
-            self.sn_ejecta_abundances = {}
-            for e in self.abundances.keys():
+            self.wind_ejecta_abundances = OrderedDict()
+            self.sn_ejecta_abundances = OrderedDict()
+
+            for e in abundances.keys():
                 self.wind_ejecta_abundances[e] = 0.0
                 self.sn_ejecta_abundances[e]  = 0.0
 
 
         else:
-            self.abundances             = {} # property of particle
-            self.wind_ejecta_abundances = {} # time varying
-            self.sn_ejecta_abundances   = {} # constant (only go SN once)
+            self.wind_ejecta_abundances = OrderedDict() # time varying
+            self.sn_ejecta_abundances   = OrderedDict() # constant (only go SN once)
 
        
 
@@ -145,8 +145,8 @@ class Star(StarParticle):
     def set_SNIa_properties(self):
         # need to rename and combine this and functions below
 
-        if len(self.abundances.keys() > 0):
-            yields = phys.SNIa_yields(self.abundances.keys())
+        if len(self.wind_ejecta_abundances.keys() > 0):
+            yields = phys.SNIa_yields(self.wind_ejecta_abundances.keys())
 
             i = 0
             for e in self.sn_ejecta_abundances.keys():
@@ -159,9 +159,9 @@ class Star(StarParticle):
 
     def set_SNII_properties(self):
 
-        if len(self.abundances.keys() > 0):
+        if len(self.wind_ejecta_abundances.keys() > 0):
             yields =  SN_YIELD_TABLE.interpolate([self.M_o, self.Z],
-                                                  self.abundances.keys())
+                                                  self.wind_ejecta_abundances.keys())
 
             i = 0
             for e in self.sn_ejecta_abundances.keys():
@@ -239,7 +239,7 @@ class Star(StarParticle):
 
     def compute_stellar_wind_yields(self):
         yields = np.asarray(WIND_YIELD_TABLE.interpolate([self.M_o, self.Z],
-                                                          self.abundances.keys()))
+                                                          self.wind_ejecta_abundances.keys()))
 
 
         return np.asarray(yields)
