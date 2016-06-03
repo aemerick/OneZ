@@ -94,8 +94,8 @@ class Zone:
         star_type = self.all_stars.property_asarray('type')
         
         if np.size(star_type) > 1:
-            self.N_SNII += len( star_type[ star_type == 'new_SNIa_remnant'] )
-            self.N_SNIa += len( star_type[ star_type == 'new_remnant']      )
+            self.N_SNIa += len( star_type[ star_type == 'new_SNIa_remnant'] )
+            self.N_SNII += len( star_type[ star_type == 'new_remnant']      )
         
         return
 
