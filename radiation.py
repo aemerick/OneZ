@@ -6,31 +6,49 @@ from constants import CONST as const
 
 
 def compute_blackbody_q1(T):
+    """
+    Computes flux of photons at HeI line for black body of 
+    temperature T
+    """
+
+    # convert to unitless energy
     x = (const.E_HeI / const.eV_erg) / (const.k_boltz * T)
     q1 = photon_radiance(x)
 
+    # normalization constants
     A =  2.0 * const.k_boltz**3 * T**3 / (const.h**3 *const.c**2)
    
     return A * q1
 
 def compute_blackbody_q0(T):
+    """
+    Computes H ionizing photon flux for a black body of temperature T
+    """
 
+    # convert to a unitless energy to compute radiance
     x = (const.E_HI / const.eV_erg) / (const.k_boltz * T)
     q0 = photon_radiance(x)
 
+    # constants to convert back to total count
     A=  2.0 * const.k_boltz**3 * T**3 / (const.h**3 *const.c**2)
-    q0 = q0 * A
 
     return A * q0 
 
 
 def fuv_flux_blackbody(T):
+    """
+    Computes black body flux over the FUV band for a 
+    black body of temperature T
+    """
+
+    # convert to unitless energies
     x2 = (const.E_HI / const.eV_erg) / (const.k_boltz * T)
     x1 = (6.0        / const.eV_erg) / (const.k_boltz * T)
 
-
+    # normalization const
     A = 2.0 * const.k_boltz**4 * T**4 / (const.h**3 * const.c**2)
 
+    # flux and renorm
     fuv_flux = A * black_body_flux(x1,x2)
 
     return fuv_flux
@@ -74,6 +92,11 @@ def one_sided_black_body_flux(x):
 
 
 def photon_radiance(x):
+    """
+    Integral over black body spectrum to compute the number of photons
+    with energies above the given unitless energy x, where x = Eh / kT. 
+    Uses series approximation of integral
+    """
     max_iter = 513
     min_iter = 4
     tolerance = 1.0E-10
@@ -91,6 +114,12 @@ def photon_radiance(x):
     return sum
 
 def average_energy(E_i, T):
+    """
+    Given an energy in erg, computes the average energy of photons 
+    above E_i for a black body of temperature T using a series approx of
+    the integral over the black body spectrum
+    """
+
     max_iter = 513
     min_iter = 4
     tolerance = 1.0E-10
