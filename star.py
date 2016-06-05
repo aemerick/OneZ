@@ -132,11 +132,12 @@ class Star(StarParticle):
             # if this is a WD, need to check and see if it will explode            
             if self.properties['type'] == 'WD':
                 if self.properties['SNIa_candidate']:
-                    self.properties['PSNIa'] = dt * phys.SNIa_probability(self.M, t,
+                    self.properties['PSNIa'] = phys.SNIa_probability(t*1.0E6*const.yr_to_s,
                                                                      self.tform,
                                                                      self.properties['lifetime'])
+                    self.properties['PSNIa'] *= dt * 1.0E6 * const.yr_to_s
 
-                    if self.properties['PSNIa'] * dt > np.random.rand():
+                    if self.properties['PSNIa'] > np.random.rand():
 
                         # go Type Ia supernova
                         self.properties['type'] = 'new_SNIa_remnant'
@@ -151,13 +152,15 @@ class Star(StarParticle):
         # update mass
         self.M = self.M - M_loss
 
-        if self.M < 0.0:
+        if self.M < 0.0 and not 'SNIa' in self.properties['type']:
             print "ERROR IN STAR: Negative stellar mass"
             print "birth mass, mass, mdot_ej, mdot_ej*dt, sn_mass_loss, M_loss, age"
             print self.M_o, self.M, self.Mdot_ej, self.Mdot_ej*dt, SN_mass_loss, M_loss, age
             print self.properties
             print "time, dt", t, dt
             raise RuntimeError
+        else:
+            self.M = 0.0
 
         return None
     def set_SNIa_properties(self):
@@ -169,6 +172,7 @@ class Star(StarParticle):
             i = 0
             for e in self.sn_ejecta_abundances.keys():
                 self.sn_ejecta_abundances[e] = yields[i]
+                i = i + 1
 
         else:
             return NotImplementedError
