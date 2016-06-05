@@ -23,6 +23,22 @@ WIND_YIELD_TABLE = DT.StellarYieldsTable('wind')
 class StarParticle:
 
     def __init__(self, M, Z, abundances=None, tform=0.0, id = 0):
+        """
+        Initialize star particle with mass and metallicity. Particle
+        properties are assigned using input M and Z to interpolate
+        over tables.
+
+        Args:
+            M (float): Star mass in solar masses
+            Z (float): star metallicity in solar masses
+            abundances (optional, dict): A dictionary of local chemical
+                abundances in the SF region. If this is passed,
+                star is assigned enrichment properties. Default to None.
+            tform (optional, float): Time at formation. Default is 0.0.
+            id (optional int): Optional unique id number to assign to particle
+                if tracking many. Default is 0
+
+        """
 
         self.M   = M
         self.M_o = M
@@ -32,23 +48,16 @@ class StarParticle:
         self.id    = id
 
 
-        self.properties = {} # constant properties
-        self.properties['type'] = 'star'
+        self.properties = {}
+
+        self.wind_ejecta_abundances = OrderedDict()
+        self.sn_ejecta_abundances   = OrderedDict()
 
         if not abundances == None:
-            self.wind_ejecta_abundances = OrderedDict()
-            self.sn_ejecta_abundances = OrderedDict()
 
             for e in abundances.keys():
                 self.wind_ejecta_abundances[e] = 0.0
                 self.sn_ejecta_abundances[e]  = 0.0
-
-
-        else:
-            self.wind_ejecta_abundances = OrderedDict() # time varying
-            self.sn_ejecta_abundances   = OrderedDict() # constant (only go SN once)
-
-       
 
     def evolve(self, t, dt):
         pass
@@ -63,15 +72,16 @@ class StarParticle:
 class Star(StarParticle):
         
     def __init__(self, *args, **kwargs):
+
         StarParticle.__init__(self, *args, **kwargs)
 
-
+        self.properties['type'] = 'star'
 
         self._assign_properties()
 
     def evolve(self, t, dt):
         """
-        Evolve the star
+        Evolve 
         """
 
         age = t - self.tform
@@ -95,34 +105,35 @@ class Star(StarParticle):
                 self.properties['type'] = self.properties['type'].replace('new_','')
                 self._clear_properties()
 
+                SN_mass_loss = 0.0
 
-
-            if self.M > 8.0:
-                #
-                # Core collapse supernova - change type and compute yields
-                #
-                self.set_SNII_properties()
-                self.properties['type'] = 'new_remnant'
-                SN_mass_loss = self.sn_ejecta_abundances['m_tot']
-            else:
-                #
-                # Otherwise, form a white dwarf when dead and label as
-                # candidate for future SNIa
-                #
-                self.M = phys.white_dwarf_mass(self.M_o)
-                self.properties['type']               = 'new_WD'
-
-                if self.M_o > 3.0 and self.M_o < 8.0:
-                    self.properties['SNIa_candidate'] = True
-                    self.properties['PSNIa']          = 0.0 # initialize prob of going SNIa
+            elif self.properties['type'] == 'star':
+                if self.M_o > 8.0:
+                    #
+                    # Core collapse supernova - change type and compute yields
+                    #
+                    self.set_SNII_properties()
+                    self.properties['type'] = 'new_remnant'
+                    SN_mass_loss = self.sn_ejecta_abundances['m_tot']
                 else:
-                    self.properties['SNIa_candidate'] = False
+                    #
+                    # Otherwise, form a white dwarf when dead and label as
+                    # candidate for future SNIa
+                    #
+                    self.M = phys.white_dwarf_mass(self.M_o)
+                    self.properties['type']               = 'new_WD'
+
+                    if self.M_o > 3.0 and self.M_o < 8.0:
+                        self.properties['SNIa_candidate'] = True
+                        self.properties['PSNIa']          = 0.0 # initialize prob of going SNIa
+                    else:
+                        self.properties['SNIa_candidate'] = False
 
             # if this is a WD, need to check and see if it will explode            
             if self.properties['type'] == 'WD':
                 if self.properties['SNIa_candidate']:
                     self.properties['PSNIa'] = dt * phys.SNIa_probability(self.M, t,
-                                                                     self.t_form,
+                                                                     self.tform,
                                                                      self.properties['lifetime'])
 
                     if self.properties['PSNIa'] * dt > np.random.rand():
@@ -135,13 +146,17 @@ class Star(StarParticle):
         #
         # Compute total mass lost through supernova and wind
         #
-        M_loss = self.Mdot_ej * dt + SN_mass_loss
+        M_loss = self.Mdot_ej * (1.0E6 * const.yr_to_s) * dt + SN_mass_loss
         
         # update mass
         self.M = self.M - M_loss
 
-        if self.M <= 0.0:
-            print "ERROR IN STAR: Negative or zero stellar mass"
+        if self.M < 0.0:
+            print "ERROR IN STAR: Negative stellar mass"
+            print "birth mass, mass, mdot_ej, mdot_ej*dt, sn_mass_loss, M_loss, age"
+            print self.M_o, self.M, self.Mdot_ej, self.Mdot_ej*dt, SN_mass_loss, M_loss, age
+            print self.properties
+            print "time, dt", t, dt
             raise RuntimeError
 
         return None
@@ -190,6 +205,7 @@ class Star(StarParticle):
         zero_properties = ['E0', 'E1', 'L_FUV', 'Q0', 'Q1',
                            'luminosity', 'v_wind', 'Mdot_wind']
 
+        self.Mdot_ej = 0.0
         for p in zero_properties:
             self.properties[p] = 0.0
 
@@ -224,7 +240,7 @@ class Star(StarParticle):
             # check if star's wind is ON
             do_wind = True
 
-            if self.M < 8.0:
+            if self.M_o < 8.0:
                 if age < self.properties['age_agb'] / ( 1.0E6 * const.yr_to_s):
                     do_wind = False
                     wind_lifetime = 0.0
@@ -236,7 +252,7 @@ class Star(StarParticle):
                 wind_lifetime = self.properties['lifetime']
 
             if wind_lifetime < dt:
-                wind_lifetime = dt
+                wind_lifetime = dt * const.yr_to_s * 1.0E6
 
             if do_wind and age < self.properties['lifetime']:           
                 Mdot   = self.properties['M_wind_total'] / wind_lifetime                
