@@ -148,7 +148,6 @@ class Star(StarParticle):
         #
         M_loss = self.Mdot_ej * (1.0E6 * const.yr_to_s) * dt + SN_mass_loss
         
-        # update mass
         self.M = self.M - M_loss
 
         if self.M < 0.0 and not 'SNIa' in self.properties['type']:
@@ -158,7 +157,7 @@ class Star(StarParticle):
             print self.properties
             print "time, dt", t, dt
             raise RuntimeError
-        else:
+        elif self.M < 0.0 and 'SNIa' in self.properties['type']:
             self.M = 0.0
 
         if self.properties['type'] == 'new_WD':
@@ -261,10 +260,22 @@ class Star(StarParticle):
             if wind_lifetime < dt * const.yr_to_s * 1.0E6:
                 wind_lifetime = dt * const.yr_to_s * 1.0E6
 
-            if do_wind and age < self.properties['lifetime']:           
-                Mdot   = self.properties['M_wind_total'] / wind_lifetime                
+            if do_wind and age*const.yr_to_s*1.0E6 < self.properties['lifetime']:
+                Mdot   = self.properties['M_wind_total'] / wind_lifetime
             else:
                 Mdot   = 0.0
+
+            #
+            # if difference b/t birth mass and mass after wind timestep is more than
+            # total amount, set wind ejected to just the difference
+            # this can happen when wind phase is < dt and lines up between timesteps
+            #
+            final_mass = self.M - Mdot * dt * const.yr_to_s * 1.0E6
+            correct_final_mass = self.M_o - self.properties['M_wind_total']
+            
+
+            if final_mass < correct_final_mass:
+                Mdot = (self.M - correct_final_mass) / wind_lifetime
 
         else:
 
