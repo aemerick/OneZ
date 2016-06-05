@@ -73,7 +73,7 @@ def SNIa_yields( elements , return_dict = False):
                   'Ga'      : 1.0E-7 + 6.1E-9,
                   'Ge'      : 8.4E-7 + 5.7E-8 + 8.1E-11 + 1.8E-8}
 
-    zero_elements = ['H ','He','Li','Be','B','As','Se','Br','Kr','Rb','Sr','Y','Zr',
+    zero_elements = ['H','He','Li','Be','B','As','Se','Br','Kr','Rb','Sr','Y','Zr',
                      'Nb','Mo','Tc','Ru','Rh','Pd','Ag','Cd','In','Sn','Sb','Te','I',
                      'Xe','Cs','Ba','La','Ce','Pr','Nd','Pm','Sm','Eu','Gd','Tb','Dy',
                      'Ho','Er','Tm','Yb','Lu','Hf','Ta','W','Re','Os','Ir','Pt','Au',
@@ -85,14 +85,14 @@ def SNIa_yields( elements , return_dict = False):
     if return_dict:
         return yields_dict
 
-    
-    if isinstance(names, basestring):
-        return yields_dict[names]
+
+    if isinstance(elements, basestring):
+        return yields_dict[elements]
     else:
-        return np.asarray([ yields_dict[x] for x in names ])
+        return np.asarray([ yields_dict[x] for x in elements ])
 
 
-def SNIa_probability(M, t, t_form, lifetime, DTD_slope = 1.0, NSNIa = 0.043):
+def SNIa_probability(t, t_form, lifetime, DTD_slope = 1.0, NSNIa = 0.043):
     """
     Delay time distribution model to calculate dP/dt for a given
     white dwarf to explode as a Type Ia supernova as a function of 
@@ -107,10 +107,10 @@ def SNIa_probability(M, t, t_form, lifetime, DTD_slope = 1.0, NSNIa = 0.043):
     dPdt = NSNIa
 
     if (DTD_slope == 1.0):
-        dPdt /= np.log( (const.hubble_time/lifetime) / lifetime )
+        dPdt /= np.log( (const.hubble_time) / lifetime )
     else:
         dPdt *= (- DTD_slope + 1.0)
-        dPdt /= ( (hubble_time/lifetime)**(-DTD_slope + 1.0) - (lifetime)**(-DTD_slope+1.0))
+        dPdt /= ( (hubble_time)**(-DTD_slope + 1.0) - (lifetime)**(-DTD_slope+1.0))
     
     dPdt *= (t - t_form)**(-DTD_slope)
 
