@@ -31,8 +31,19 @@ class constants:
       
         self.yr_to_s = 3.16224E7
 
+        self.km      = 1.0E5
+        self.pc      = 3.0865677E18
+        self.kpc     = 1.0E3 * self.pc
+        self.Mpc     = 1.0E3 * self.kpc
 
         return None
+
+    @property
+    def hubble_time(self, H_o = 70.0, z = 0.0):
+
+        tau = 1.0 / H_o
+
+        return tau * self.Mpc / self.km
 
 
 CONST = constants()
