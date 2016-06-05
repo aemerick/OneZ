@@ -120,7 +120,6 @@ class Star(StarParticle):
                     # Otherwise, form a white dwarf when dead and label as
                     # candidate for future SNIa
                     #
-                    self.M = phys.white_dwarf_mass(self.M_o)
                     self.properties['type']               = 'new_WD'
 
                     if self.M_o > 3.0 and self.M_o < 8.0:
@@ -161,6 +160,10 @@ class Star(StarParticle):
             raise RuntimeError
         else:
             self.M = 0.0
+
+        if self.properties['type'] == 'new_WD':
+            self.M = phys.white_dwarf_mass(self.M_o)
+
 
         return None
     def set_SNIa_properties(self):
@@ -255,7 +258,7 @@ class Star(StarParticle):
               
                 wind_lifetime = self.properties['lifetime']
 
-            if wind_lifetime < dt:
+            if wind_lifetime < dt * const.yr_to_s * 1.0E6:
                 wind_lifetime = dt * const.yr_to_s * 1.0E6
 
             if do_wind and age < self.properties['lifetime']:           
