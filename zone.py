@@ -28,6 +28,7 @@ class Zone:
         self.M_DM  = M_DM
         self.all_stars = star.StarList()
         self.Z         = 0.001
+        self._M_sf_resivoir = 0.0
 
         self.initial_abundances = OrderedDict()
         self.species_masses     = OrderedDict()
@@ -223,16 +224,29 @@ class Zone:
         
         # given SFR and gas resivoir
         M_sf = self.dt * self.Mdot_sf
-        # sample from IMF until M_sf is reached
-        star_masses = self.imf.sample(M = M_sf)
 
-        M_sf = np.sum(star_masses)
+        self._M_sf_resivoir += M_sf
 
-        for m in star_masses:
-            self.all_stars.append( star.Star(m, self.Z, self.abundances,
-                                             tform=self.t, id=self._assign_particle_id()))
+        if (self._M_sf_resivoir > 1000.0): # make parameter and switch to turn on / off
+
+            # sample from IMF until M_sf is reached
+            star_masses = self.imf.sample(M = self._M_sf_resivoir)
+
+            M_sf = np.sum(star_masses)
+
+            for m in star_masses:
+                self.all_stars.append( star.Star(m, self.Z, self.abundances,
+                                                 tform=self.t, id=self._assign_particle_id()))
+
+            
+            M_sf = self._M_sf_resivoir
+            
+            self._M_sf_resivoir = 0.0 # reset counter
+        else:
+            M_sf = 0.0
 
         return M_sf
+
 
     def _set_default_parameters(self):
         self.parameters['inflow_factor']  = 0.05
@@ -255,7 +269,8 @@ class Zone:
         self.Mdot_out = self.parameters['mass_loading'] * self.Mdot_sf
 
     def _compute_sfr(self):
-        self.Mdot_sf  = self.parameters['sfr_efficiency'] * self.M_gas / (1.0) # need to fix!!! 1 = 1 Myr
+#        self.Mdot_sf  = self.parameters['sfr_efficiency'] * self.M_gas / (1.0) # need to fix!!! 1 = 1 Myr
+        self.Mdot_sf = 10.0 # solar masses per Myr
 
     def _check_output(self):
 
