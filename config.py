@@ -23,6 +23,35 @@ class _parameters:
         self.__init__()
 
 #
+# ----------- Units ----------------------
+#
+class _units(_parameters):
+    """
+    Units:
+
+        Set the conversions between code units and 'base'
+        quantities. For the sake of the onezone code,
+        the base unit of time is in seconds and the base unit
+        of mass is in solar masses. Therefore, in order to 
+        set the time units to Myr (default) and mass units
+        to solar masses (default), one would just do:
+
+            >>> units.time = 3.1536E13
+            >>> units.mass = 1.0
+
+        Output masses are always in solar, while everything else (e.g.
+        luminosity) is in cgs, regardless of what the code units are 
+        set to.
+    """
+
+    def __init__(self):
+        self.time      = const.yr_to_s * 1.0E6
+        self.mass      = 1.0
+
+        return
+
+units = _units()
+#
 # -------- Global Zone Parameters ------- 
 #
 class _zone_parameters(_parameters):
@@ -39,6 +68,9 @@ class _zone_parameters(_parameters):
         initial_gas_mass (float) : initial gas mass in solar masses
         initial_dark_matter_mass (float) : DM mass of halo in solar
         initial_metallicity (float)      : initial gas metal fraction
+        dt (float)                       : constant timestep size in code time
+	t_final (float)                  : time to end simulation
+        
 
         Suggested Parameters:
 
@@ -57,7 +89,34 @@ class _zone_parameters(_parameters):
                time and stellar mass. Column headers must be named
                appropriately as ("time" or "SFR" or "mass").
 
-         dt (float) : time step size. Default 1.0 code units (Myr)
+         use_SF_mass_reservoir (bool , optional) : One of two ways to deal with low
+             SFR's to ensure accurate sampling of the IMF (see the second
+             below). Make sure you understand these parameters and their
+             implications before setting -- know also that they may need to 
+             be set in certain situations. This parameter turns on the
+             reservoir method whereby M_sf = dt * SFR is added to a 
+             reservoir each timestep. If the reservoir exceeds the 
+             mass threshold ``SF_mass_reservoir_size'', SF occurs in that timestep
+             using up all of the reservoir. This may lead to bursty, intermittent SF
+             depnding on size of resivoir. Default = False
+
+         use_stochastic_mass_sampling (bool, optional) : Second and preferred method to deal
+             with low SFR's. Prevent normal SF if M_sf = dt * SFR is below some threshold
+             value, ``stochastic_sample_mass''. Instead of shutting off SF that
+             timestep completely, however, and instead of accumulating mass in a
+             reseroir, compute the probablility that a chunk of gas of mass
+             ``stochastic_sample_mass'' is made into stars that timestep as
+             P = M_sf / stochastic_sample_mass . That chunk is then formed
+             completely into stars using a random number draw. Default is True
+
+         SF_mass_reservoir_size (float, optional) : Size of accumulation reservoir used with
+         ``use_SF_mass_reservoir''. Default is 1000.0
+
+         stochastic_sample_mass (float, optional) : Size of mass chunk allowed to form
+             stochastically when SFR is low. Be careful setting this to too large
+             a value. Not recommended to set below ~200.0 Msun depending
+             on one's choice of maximum star particle mass. Default is 250.0.
+
     """
 
     def __init__(self):
@@ -68,10 +127,18 @@ class _zone_parameters(_parameters):
         self.initial_abundances       = None
 
         self.imf                      = imf.salpeter()
-        self.star_formation_method    = 1          # 
+        self.star_formation_method    = 1          # 1, 2, 3
         self.SFH_filename             = None
-        self.SFR                      = 1.0        # code mass / code time
-        self.SF_accumulation_mass     = 100.0
+        self.constant_SFR             = 10.0        # code mass / code time
+
+        self.cosmological_evolution   = False       # on or off
+
+        self.use_SF_mass_reservoir     = False
+        self.SF_mass_reservoir_size    = 1000.0
+
+        self.use_stochastic_mass_sampling = True
+        self.stochastic_sample_mass   = 250.0
+
 
         # - inflow, outflow, and efficiency parameters
         self.inflow_factor            = 0.05
@@ -81,6 +148,7 @@ class _zone_parameters(_parameters):
 
         self._time_units              = const.yr_to_s * 1.0E6 
         self.t_o                      = 0.0             # Myr
+        self.t_final                  = 1.0E4           # Myr
         self.dt                       = 1.0             # Myr
 
     @property
@@ -146,7 +214,7 @@ def information():
     Welcome to the configuration parameters for the onezone
     chemical enrichment model. Parameters are classified by
     whether or not they belong to the more global onezone gas
-    resivoir, the stars (and stellar physics) itself, or 
+    reservoir, the stars (and stellar physics) itself, or 
     input/output. The parameters can be accessed and modified
     as attributes of the following objects:
  
