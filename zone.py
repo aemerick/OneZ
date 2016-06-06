@@ -31,12 +31,10 @@ class Zone:
         self.M_DM      = config.zone.initial_dark_matter_mass
         self.all_stars = star.StarList()
         self.Z         = config.zone.initial_metallicity
-        self._M_sf_resivoir = 0.0
+        self._M_sf_reservoir = 0.0
 
         self.initial_abundances = config.zone.initial_abundances
         self.species_masses     = OrderedDict()
-
-        self.imf = imf.salpeter()
 
         # some private things
         self._t_last_dump        = 0.0
@@ -99,62 +97,65 @@ class Zone:
         
         return
 
-    def evolve(self, tend):
-       """
-          Evolves the system
-       """
+    def evolve(self):
+        """
+           Evolves the system
+        """
 
-       self.tend         = tend
+        while self.t < config.zone.t_final:
 
-       self._check_output() # do initial output
+            self._check_output()
 
-       while self.t < self.tend:
-           # step one, evolve stars and compute m_ej
+            # step one, evolve stars and compute m_ej
  
-           self._evolve_stars()
+            self._evolve_stars()
 
-           #
-           # Count number of core collapse and SNIa 
-           #
-           self._accumulate_new_sn()
+            #
+            # Count number of core collapse and SNIa 
+            #
+            self._accumulate_new_sn()
 
-           # step two, compute m_sf
-           self._compute_sfr()
-           self._compute_outflow()
-           self._compute_inflow()
+            # step two, compute m_sf
+            self._compute_sfr()
+            self._compute_outflow()
+            self._compute_inflow()
 
-           # form new stars here
-           M_sf = self._make_new_stars()
-           self.M_sf = M_sf
+            # form new stars here
+            M_sf = self._make_new_stars()
+            self.M_sf = M_sf
 
-           #
-           # step three compute total inflow, outflow,
-           #
+            #
+            # step three compute total inflow, outflow,
+            #
  
-           self.M_gas += (self.Mdot_in + self.Mdot_ej -\
-                          self.Mdot_out) * self.dt - M_sf
-
-           if self.M_gas < 0:
-               self.M_gas = 0.0
-
-           # 
-           # do the same for abundances
-           #
-           abundances = self.abundances
-           for e in self.species_masses.keys():
-               self.species_masses[e] += (self.Mdot_in  * self.Mdot_in_abundances(e) +\
-                                          self.Mdot_ej_masses[e] +\
-                                          self.Mdot_out * abundances[e]) * self.dt -\
-                                          self.M_sf * abundances[e] + self.SN_ej_abundances[e]
-
-           self._update_metallicity()
-           # compute abundances
-
-           self.t += self.dt
-           self._cycle_number += 1      
+            self.M_gas += (self.Mdot_in + self.Mdot_ej -\
+                           self.Mdot_out) * self.dt - M_sf
  
-           # check output condition
-           self._check_output()
+            if self.M_gas < 0:
+                self.M_gas = 0.0
+
+            # 
+            # do the same for abundances
+            #
+            abundances = self.abundances
+            for e in self.species_masses.keys():
+                self.species_masses[e] += (self.Mdot_in  * self.Mdot_in_abundances(e) +\
+                                           self.Mdot_ej_masses[e] +\
+                                           self.Mdot_out * abundances[e]) * self.dt -\
+                                           self.M_sf * abundances[e] + self.SN_ej_abundances[e]
+
+            self._update_metallicity()
+            # compute abundances
+
+
+            # increase time counter 
+            self.t += self.dt
+            self._cycle_number += 1
+
+
+        self._check_output(force=True) # do final output
+
+        return
 
     def _update_metallicity(self):
     
@@ -196,7 +197,7 @@ class Zone:
         self.all_stars.evolve(self.t, self.dt)
 
         self.Mdot_ej = 0.0
-        mass_loss_rate = self.all_stars.property_asarray('Mdot_ej') * 1.0E6 * const.yr_to_s
+        mass_loss_rate = self.all_stars.property_asarray('Mdot_ej') * config.units.time
         self.Mdot_ej = np.sum( mass_loss_rate )
 
         i = 0
@@ -211,7 +212,7 @@ class Zone:
             self.Mdot_ej_masses[e]  = np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'star') * self.all_stars.property_asarray('Mdot_ej','star'))
             self.Mdot_ej_masses[e] += np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'new_WD')      * self.all_stars.property_asarray('Mdot_ej', 'new_WD'))
             self.Mdot_ej_masses[e] += np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'new_remnant') * self.all_stars.property_asarray('Mdot_ej','new_remnant'))
-            self.Mdot_ej_masses[e] *= 1.0E6 * const.yr_to_s
+            self.Mdot_ej_masses[e] *= config.units.time
 
             self.SN_ej_abundances[e]   = np.sum(self.all_stars.species_asarray('SN_ej_' + e, 'new_SNIa_remnant'))
             self.SN_ej_abundances[e]  += np.sum(self.all_stars.species_asarray('SN_ej_' + e, 'new_remnant'))
@@ -221,28 +222,58 @@ class Zone:
 
     def _make_new_stars(self):
         
-        # given SFR and gas resivoir
+        #
+        # compute the amount of gas to convert
+        # into stars this timestep
+        #
         M_sf = self.dt * self.Mdot_sf
 
-        self._M_sf_resivoir += M_sf
+        if config.zone.use_SF_mass_reservoir:
+            # 
+            # Accumulate mass into "reservoir" and wait until
+            # this is surpassed to form stars
+            #
 
-        if (self._M_sf_resivoir > 1000.0): # make parameter and switch to turn on / off
+            self._M_sf_reservoir += M_sf
 
-            # sample from IMF until M_sf is reached
-            star_masses = self.imf.sample(M = self._M_sf_resivoir)
+            if (self._M_sf_reservoir > config.zone.SF_mass_reservoir_size):
 
+                # sample from IMF until M_sf is reached
+                M_sf = self._M_sf_reservoir
+                self._M_sf_reservoir = 0.0 # reset counter
+            else:
+                M_sf = 0.0
+
+        elif (config.zone.use_stochastic_mass_sampling and\
+                M_sf < config.zone.stochastic_sample_mass):
+            #
+            # Prevent undersampling the IMF by requiring minimum mass
+            # threshold. Allow SF to happen stochastically when M_sf is
+            # below this threshold
+            #
+
+            probability_of_sf = M_sf / config.zone.stochastic_sample_mass
+
+            if (probability_of_sf > np.random.random()):
+                M_sf = config.zone.stochastic_sample_mass
+            else:
+                M_sf = 0.0
+
+        #
+        # Make new stars if M_gas->star > 0
+        # 
+        if M_sf > 0.0:
+
+            # sample from IMF and sum sampled stars
+            # to get actual star formation mass 
+            star_masses = config.zone.imf.sample(M = M_sf)
             M_sf = np.sum(star_masses)
 
+            # add each new star to the star list
             for m in star_masses:
                 self.all_stars.append( star.Star(m, self.Z, self.abundances,
-                                                 tform=self.t, id=self._assign_particle_id()))
+                                                 tform=self.t,id=self._assign_particle_id()))
 
-            
-            M_sf = self._M_sf_resivoir
-            
-            self._M_sf_resivoir = 0.0 # reset counter
-        else:
-            M_sf = 0.0
 
         return M_sf
 
@@ -263,40 +294,66 @@ class Zone:
         self.Mdot_out = config.zone.mass_loading_factor * self.Mdot_sf
 
     def _compute_sfr(self):
-#        self.Mdot_sf  = self.parameters['sfr_efficiency'] * self.M_gas / (1.0) # need to fix!!! 1 = 1 Myr
-        self.Mdot_sf = 10.0 # solar masses per Myr
 
-    def _check_output(self):
+        if config.zone.star_formation_method == 1:
+            # constant, user supplied SFR
+            self.Mdot_sf = config.zone.constant_SFR
 
+        elif config.zone.star_formation_method == 2 :
+            print "Cosmological SFR evolution not yet implemented"
+            raise NotImplementedError
+
+        elif config.zone.star_formation_method == 3 :
+            print "SFH from file not yet implemented"
+            raise NotImplementedError
+
+    def _check_output(self, force = False):
+
+        if force:
+            self.write_full_dump()
+            self.write_summary_output()
+            return
+
+        #
+        # Otherwise output based on user supplied conditions
+        # 
+
+        #
         # check for full write out
+        #
         if( (self.t - self._t_last_dump) >= config.io.dt_dump and\
               config.io.dt_dump > 0 ):
             self._t_last_dump = self.t
-            self._write_full_dump()
+            self.write_full_dump()
 
         if( self._cycle_number == 0 or\
            ((self._cycle_number - self._cycle_last_dump) >= config.io.cycle_dump )\
            and config.io.cycle_dump > 0 ): 
             self._cycle_last_dump = self._cycle_number
-            self._write_full_dump()
+            self.write_full_dump()
 
-        # now check for partial writes
+        #
+        # now check for partial (summary) writes
+        #
         if(  self._cycle_number == 0 or\
             (self._cycle_number - self._cycle_last_summary >= config.io.cycle_summary)\
             and config.io.cycle_summary > 0):
 
             self._cycle_last_summary = self._cycle_number
-            self._write_summary_output()
+            self.write_summary_output()
 
         if( ((self.t - self._t_last_summary) > config.io.dt_summary) and
             config.io.dt_summary > 0 ):
             self._t_last_summary = self.t
-            self._write_summary_output()
+            self.write_summary_output()
 
+        return
 
         
-    def _write_full_dump(self):
-        # for now just pickle, but need to get fancy later
+    def write_full_dump(self):
+        """
+        Pickle current simulation 
+        """
 
         name = config.io.dump_output_basename + "_%00004i"%(self._output_number)
 
@@ -306,11 +363,12 @@ class Zone:
 
         self._output_number += 1
 
+        return
+
 
     def _accumulate_summary_data(self):
 
         self._summary_data = OrderedDict()
-
 
         self._summary_data['t']       = self.t
 
@@ -344,19 +402,15 @@ class Zone:
 
         return 
 
-    def _write_summary_output(self):
-
-        # probably just do this as a line in a txt file
-        # with colums:
-        # t mgas mdm mstars nstars mdot_sf mdot_in mdot_out mdot_ej metallicity L_wind L_SN L_fuv L_q1 L_q1 species_fracs 
-        # where the luminosities are summed over all star particles from stellar wind
-        # supernova and radiation contributions
+    def write_summary_output(self):
+        """
+        Write out summary output by appending to ASCII file. Filename is overwritten
+        at first write out, so be careful.
+        """
 
         self._accumulate_summary_data()
 
         ncol = np.size(self._summary_data.keys())
-
-        
 
         if self._summary_output_number == 0: # print the header only once
             header = " " + " ".join(self._summary_data.keys()) + "\n"
