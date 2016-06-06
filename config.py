@@ -64,8 +64,8 @@ class _zone_parameters(_parameters):
         self.initial_gas_mass         = 0.0
         self.initial_dark_matter_mass = 0.0
         self.initial_metallicity      = 0.0
-        self.initial_abundances       = OrderedDict()
-        self.initial_abundances       = OrderedDict()
+        self.species_to_track         = OrderedDict()
+        self.initial_abundances       = None
 
         self.imf                      = imf.salpeter()
         self.star_formation_method    = 1          # 
@@ -75,7 +75,7 @@ class _zone_parameters(_parameters):
 
         # - inflow, outflow, and efficiency parameters
         self.inflow_factor            = 0.05
-        self.mass_loading             = 0.1
+        self.mass_loading_factor      = 0.1
         self.SFR_efficiency           = 0.01
 
 
@@ -106,8 +106,14 @@ class _star_particle_parameters(_parameters):
         self.SNII_mass_threshold           = 8.0    
         self.SNIa_candidate_mass_bounds    = [3.0, 8.0]
 
-        self.AGB_wind_phase_mass_threshold = 8.0
+        self.DTD_slope                     = 1.0
+        self.NSNIa                         = 0.043
 
+        self.use_AGB_wind_phase            = True
+        self.AGB_wind_phase_mass_threshold = 8.0
+        
+
+        self.normalize_black_body_to_OSTAR = True
         self.black_body_correction_mass    = 20.0
         self.black_body_q0_factors         = const.black_body_q0
         self.black_body_q1_factors         = const.black_body_q1
@@ -121,7 +127,7 @@ stars = _star_particle_parameters()
 class _io_parameters(_parameters):
 
     def __init__(self):
-        self.dump_output_filename     = 'dump_'
+        self.dump_output_basename     = 'dump'
         self.dt_dump                  = 0.0
         self.cycle_dump               = 0
 

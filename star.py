@@ -10,6 +10,8 @@ from collections import OrderedDict
 import data_tables as DT
 import radiation   as rad
 import physics     as phys
+import config      as config
+
 
 from constants import CONST as const
 
@@ -108,7 +110,7 @@ class Star(StarParticle):
                 SN_mass_loss = 0.0
 
             elif self.properties['type'] == 'star':
-                if self.M_o > 8.0:
+                if self.M_o > config.stars.SNII_mass_threshold :
                     #
                     # Core collapse supernova - change type and compute yields
                     #
@@ -122,9 +124,12 @@ class Star(StarParticle):
                     #
                     self.properties['type']               = 'new_WD'
 
-                    if self.M_o > 3.0 and self.M_o < 8.0:
+                    if self.M_o > config.stars.SNIa_candidate_mass_bounds\
+                           and self.M_o < config.stars.SNIa_candidate_mass_bounds[1]:
+
                         self.properties['SNIa_candidate'] = True
                         self.properties['PSNIa']          = 0.0 # initialize prob of going SNIa
+
                     else:
                         self.properties['SNIa_candidate'] = False
 
@@ -133,7 +138,9 @@ class Star(StarParticle):
                 if self.properties['SNIa_candidate']:
                     self.properties['PSNIa'] = phys.SNIa_probability(t*1.0E6*const.yr_to_s,
                                                                      self.tform,
-                                                                     self.properties['lifetime'])
+                                                                     self.properties['lifetime'],
+                                                                     DTD_slope = config.stars.DTD_slope,
+                                                                     NSNIa = config.stars.NSNIa)
                     self.properties['PSNIa'] *= dt * 1.0E6 * const.yr_to_s
 
                     if self.properties['PSNIa'] > np.random.rand():
@@ -246,19 +253,20 @@ class Star(StarParticle):
             # check if star's wind is ON
             do_wind = True
 
-            if self.M_o < 8.0:
+            if (self.M_o < config.stars.AGB_wind_phase_mass_threshold) and config.stars.use_AGB_wind_phase:
                 if age < self.properties['age_agb'] / ( 1.0E6 * const.yr_to_s):
                     do_wind = False
                     wind_lifetime = 0.0
                 else:
                     wind_lifetime = (self.properties['lifetime'] - self.properties['age_agb'])
              
-            else:
-              
+            else: # else have star wind on for entire lifetime
                 wind_lifetime = self.properties['lifetime']
+
 
             if wind_lifetime < dt * const.yr_to_s * 1.0E6:
                 wind_lifetime = dt * const.yr_to_s * 1.0E6
+
 
             if do_wind and age*const.yr_to_s*1.0E6 < self.properties['lifetime']:
                 Mdot   = self.properties['M_wind_total'] / wind_lifetime
@@ -332,14 +340,15 @@ class Star(StarParticle):
             Q0  = rad.compute_blackbody_q0(self.properties['Teff'])
             Q1  = rad.compute_blackbody_q1(self.properties['Teff'])
 
-            if self.M_o < 20.0:
-                corr_ind = 0
-            else:
-                corr_ind = 1
+            if config.stars.normalize_black_body_to_OSTAR:
+                if self.M_o < self.black_body_correction_mass:
+                    corr_ind = 0
+                else:
+                    corr_ind = 1
 
-            Q0  *= const.black_body_q0[corr_ind]
-            Q1  *= const.black_body_q1[corr_ind]
-            FUV *= const.black_body_fuv[corr_ind]
+                Q0  *= config.stars.black_body_q0_factors[corr_ind]
+                Q1  *= config.stars.black_body_q1_factors[corr_ind]
+                FUV *= config.stars.black_body_FUV_factors[corr_ind]
 
     
         self.properties['Q0']    = Q0 * self.surface_area()
@@ -382,7 +391,7 @@ class StarList:
         if maximum_stars == None:
             maximum_stars = 1.0E99
 
-        self._maximum_stars = maximum_stars
+        self._maximum_stars   = None # make global (config) parameters once working
 
         self._conserve_memory = conserve_memory
 

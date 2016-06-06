@@ -17,20 +17,23 @@ import pickle
 # internal
 import imf  as imf
 import star as star
+import config as config
 from constants import CONST as const
+
+
 
 class Zone:
 
-    def __init__(self, M_gas = None, M_DM = None):
+    def __init__(self):
 
         # important values and stars
-        self.M_gas = M_gas
-        self.M_DM  = M_DM
+        self.M_gas     = config.zone.initial_gas_mass
+        self.M_DM      = config.zone.initial_dark_matter_mass
         self.all_stars = star.StarList()
-        self.Z         = 0.001
+        self.Z         = config.zone.initial_metallicity
         self._M_sf_resivoir = 0.0
 
-        self.initial_abundances = OrderedDict()
+        self.initial_abundances = config.zone.initial_abundances
         self.species_masses     = OrderedDict()
 
         self.imf = imf.salpeter()
@@ -43,15 +46,10 @@ class Zone:
         self._cycle_last_summary = 0
         self._output_number      = 0
         self._summary_output_number = 0
-        self._summary_filename = 'summary_output.txt'
 
+        self.t  = config.zone.t_o
+        self.dt = config.zone.dt
 
-        self.t  = 0.0
-        self.dt = 1.0 # Myr
-
-        self.parameters = {}
-
-        self._set_default_parameters()
         self._summary_data = {}
         self.Mdot_ej = 0.0
         self.Mdot_ej_masses = OrderedDict()
@@ -68,6 +66,7 @@ class Zone:
         complete
         """
         self.initial_abundances = OrderedDict()
+
         if abundances == None:
             abundances = {'empty' : 0.0}
 
@@ -248,11 +247,6 @@ class Zone:
         return M_sf
 
 
-    def _set_default_parameters(self):
-        self.parameters['inflow_factor']  = 0.05
-        self.parameters['mass_loading']   = 0.1
-        self.parameters['sfr_efficiency'] = 0.01
-
     def _assign_particle_id(self):
         if (not hasattr(self, '_global_id_counter')):
             self._global_id_counter = 0
@@ -263,10 +257,10 @@ class Zone:
         return num
 
     def _compute_inflow(self):
-        self.Mdot_in  = self.parameters['inflow_factor'] * self.Mdot_out
+        self.Mdot_in  = config.zone.inflow_factor * self.Mdot_out
 
     def _compute_outflow(self):
-        self.Mdot_out = self.parameters['mass_loading'] * self.Mdot_sf
+        self.Mdot_out = config.zone.mass_loading_factor * self.Mdot_sf
 
     def _compute_sfr(self):
 #        self.Mdot_sf  = self.parameters['sfr_efficiency'] * self.M_gas / (1.0) # need to fix!!! 1 = 1 Myr
@@ -275,27 +269,27 @@ class Zone:
     def _check_output(self):
 
         # check for full write out
-        if( (self.t - self._t_last_dump) >= self.parameters['dt_dump'] and
-            self.parameters['dt_dump'] > 0 ):
+        if( (self.t - self._t_last_dump) >= config.io.dt_dump and\
+              config.io.dt_dump > 0 ):
             self._t_last_dump = self.t
             self._write_full_dump()
 
         if( self._cycle_number == 0 or\
-           ((self._cycle_number - self._cycle_last_dump) >= self.parameters['cycle_dump'])\
-           and self.parameters['cycle_dump'] > 0 ): 
+           ((self._cycle_number - self._cycle_last_dump) >= config.io.cycle_dump )\
+           and config.io.cycle_dump > 0 ): 
             self._cycle_last_dump = self._cycle_number
             self._write_full_dump()
 
         # now check for partial writes
         if(  self._cycle_number == 0 or\
-            (self._cycle_number - self._cycle_last_summary >= self.parameters['cycle_summary'])\
-            and self.parameters['cycle_summary'] > 0):
+            (self._cycle_number - self._cycle_last_summary >= config.io.cycle_summary)\
+            and config.io.cycle_summary > 0):
 
             self._cycle_last_summary = self._cycle_number
             self._write_summary_output()
 
-        if( ((self.t - self._t_last_summary) > self.parameters['dt_summary']) and
-            self.parameters['dt_summary'] > 0 ):
+        if( ((self.t - self._t_last_summary) > config.io.dt_summary) and
+            config.io.dt_summary > 0 ):
             self._t_last_summary = self.t
             self._write_summary_output()
 
@@ -304,7 +298,7 @@ class Zone:
     def _write_full_dump(self):
         # for now just pickle, but need to get fancy later
 
-        name = "output_name_%00004i"%(self._output_number)
+        name = config.io.dump_output_basename + "_%00004i"%(self._output_number)
 
         print "Writing full dump output as " + name + " at time t = %4.4f"%(self.t)
 
@@ -364,13 +358,13 @@ class Zone:
 
         
 
-        if self._summary_output_number == 0:
+        if self._summary_output_number == 0: # print the header only once
             header = " " + " ".join(self._summary_data.keys()) + "\n"
 
-            f = open(self._summary_filename,'w')
+            f = open(config.io.summary_output_filename,'w')
             f.write(header)
         else:
-            f = open(self._summary_filename, 'a')
+            f = open(config.io.summary_output_filename, 'a')
 
 
         fmt = "%5.5E "*ncol + "\n"
