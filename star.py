@@ -97,7 +97,7 @@ class Star(StarParticle):
 
         SN_mass_loss = 0.0
 
-        if (age + dt > self.properties['lifetime'] / (1.0E6 * const.yr_to_s)):
+        if (age + dt > self.properties['lifetime'] / (config.units.time)):
 
             if 'new' in self.properties['type']:
                 #
@@ -124,7 +124,7 @@ class Star(StarParticle):
                     #
                     self.properties['type']               = 'new_WD'
 
-                    if self.M_o > config.stars.SNIa_candidate_mass_bounds\
+                    if self.M_o > config.stars.SNIa_candidate_mass_bounds[0]\
                            and self.M_o < config.stars.SNIa_candidate_mass_bounds[1]:
 
                         self.properties['SNIa_candidate'] = True
@@ -136,12 +136,12 @@ class Star(StarParticle):
             # if this is a WD, need to check and see if it will explode            
             if self.properties['type'] == 'WD':
                 if self.properties['SNIa_candidate']:
-                    self.properties['PSNIa'] = phys.SNIa_probability(t*1.0E6*const.yr_to_s,
+                    self.properties['PSNIa'] = phys.SNIa_probability(t * config.units.time,
                                                                      self.tform,
                                                                      self.properties['lifetime'],
                                                                      DTD_slope = config.stars.DTD_slope,
                                                                      NSNIa = config.stars.NSNIa)
-                    self.properties['PSNIa'] *= dt * 1.0E6 * const.yr_to_s
+                    self.properties['PSNIa'] *= dt * config.units.time
 
                     if self.properties['PSNIa'] > np.random.rand():
 
@@ -153,7 +153,7 @@ class Star(StarParticle):
         #
         # Compute total mass lost through supernova and wind
         #
-        M_loss = self.Mdot_ej * (1.0E6 * const.yr_to_s) * dt + SN_mass_loss
+        M_loss = self.Mdot_ej * (config.units.time) * dt + SN_mass_loss
         
         self.M = self.M - M_loss
 
@@ -254,7 +254,7 @@ class Star(StarParticle):
             do_wind = True
 
             if (self.M_o < config.stars.AGB_wind_phase_mass_threshold) and config.stars.use_AGB_wind_phase:
-                if age < self.properties['age_agb'] / ( 1.0E6 * const.yr_to_s):
+                if age < self.properties['age_agb'] / ( config.units.time):
                     do_wind = False
                     wind_lifetime = 0.0
                 else:
@@ -264,11 +264,11 @@ class Star(StarParticle):
                 wind_lifetime = self.properties['lifetime']
 
 
-            if wind_lifetime < dt * const.yr_to_s * 1.0E6:
-                wind_lifetime = dt * const.yr_to_s * 1.0E6
+            if wind_lifetime < dt * config.units.time:
+                wind_lifetime = dt * config.units.time
 
 
-            if do_wind and age*const.yr_to_s*1.0E6 < self.properties['lifetime']:
+            if do_wind and age * config.units.time < self.properties['lifetime']:
                 Mdot   = self.properties['M_wind_total'] / wind_lifetime
             else:
                 Mdot   = 0.0
@@ -278,7 +278,7 @@ class Star(StarParticle):
             # total amount, set wind ejected to just the difference
             # this can happen when wind phase is < dt and lines up between timesteps
             #
-            final_mass = self.M - Mdot * dt * const.yr_to_s * 1.0E6
+            final_mass = self.M - Mdot * dt * config.units.time
             correct_final_mass = self.M_o - self.properties['M_wind_total']
             
 
@@ -341,7 +341,7 @@ class Star(StarParticle):
             Q1  = rad.compute_blackbody_q1(self.properties['Teff'])
 
             if config.stars.normalize_black_body_to_OSTAR:
-                if self.M_o < self.black_body_correction_mass:
+                if self.M_o < config.stars.black_body_correction_mass:
                     corr_ind = 0
                 else:
                     corr_ind = 1
