@@ -69,7 +69,7 @@ class _zone_parameters(_parameters):
         initial_dark_matter_mass (float) : DM mass of halo in solar
         initial_metallicity (float)      : initial gas metal fraction
         dt (float)                       : constant timestep size in code time
-	t_final (float)                  : time to end simulation
+        t_final (float)                  : time to end simulation
         
 
         Suggested Parameters:
@@ -117,6 +117,21 @@ class _zone_parameters(_parameters):
              a value. Not recommended to set below ~200.0 Msun depending
              on one's choice of maximum star particle mass. Default is 250.0.
 
+         inflow_factor  (float, optional) : Sets the mass inflow rate as a function of 
+             the star formation rate. Default 0.05
+
+         mass_loading_factor (float, optional) : Sets the mass outlflow rate as a function of
+             the star formation rate. Default 0.1
+
+         SFR_efficiency (float, optional) : For cosmologically derived SFR's, sets the 
+             star formation rate efficiency of converging gas to stars in a free fall time
+             Default is 0.01
+
+         Optional:
+        
+         t_o     (float, optional) : initial time. Default is 0.0
+         t_final (float, optional) : simulation end time. Default is 10 Gyr
+         
     """
 
     def __init__(self):
@@ -145,19 +160,10 @@ class _zone_parameters(_parameters):
         self.mass_loading_factor      = 0.1
         self.SFR_efficiency           = 0.01
 
-
-        self._time_units              = const.yr_to_s * 1.0E6 
         self.t_o                      = 0.0             # Myr
         self.t_final                  = 1.0E4           # Myr
         self.dt                       = 1.0             # Myr
 
-    @property
-    def time_units(self):
-        return self._time_units
-
-    @time_units.setter
-    def time_units(self, value):
-        self._time_units = value
 
         # assert time units here
 
@@ -167,7 +173,31 @@ zone = _zone_parameters()
 # ----------------- Stars and Stellar Evolution ------------------
 #
 class _star_particle_parameters(_parameters):
+    """
+    Star and Stellar Physics Parameters:
 
+        The below is a list of all parameters that are set to be 
+        used in evolving stars and controlling the underlying stellar
+        physics properties.
+
+        SNII_mass_threshold (float) : Lower mass limit for stars to
+            explode as a Type II supernovae at the end of their life.
+            Default is 8.0
+
+        SNIa_candidate_mass_bounds (list or array of floats) : Size
+            two (lower and upper bound) boundaries for mass range where
+            stars turn into WD's that are candidates for exploding as
+            Type 1a. Default [3.0, 8.0]
+
+        DTD_slope (float) : Slope of the delay time distribution (DTD)
+            model used to compute probability of SNIa candidates 
+            exploding as SNIa in a given timestep. Slope is beta,
+            where probability goes as t^(-beta). Default 1.0
+
+        NSNIa (float) : Fraction of SNIa candidates that will explode
+            as Type Ia supernovae in a hubble time. Default 0.043
+
+    """
 
     def __init__(self):
     
