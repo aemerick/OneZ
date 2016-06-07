@@ -172,13 +172,16 @@ class Zone:
             #    outflow, SF, and stellar ejecta
             #
             self.M_gas += (self.Mdot_in + self.Mdot_ej -\
-                           self.Mdot_out) * self.dt - self.M_sf
+                           self.Mdot_out) * self.dt - self.M_sf +\
+                           self.SN_ejecta_masses['m_tot']
 
             #
             # VI) Check if reservoir is empty
             # 
             if self.M_gas < 0:
                 self.M_gas = 0.0
+                print "Gas in zone depleted. Ending simulation"
+                break
 
             # 
             # VII) Compute increase / decrease of individual abundances
@@ -186,7 +189,7 @@ class Zone:
             abundances = self.abundances
             for e in self.species_masses.keys():
                 self.species_masses[e] += (self.Mdot_in  * self.Mdot_in_abundances(e) +\
-                                           self.Mdot_ej_masses[e] +\
+                                           self.Mdot_ej_masses[e] -\
                                            self.Mdot_out * abundances[e]) * self.dt -\
                                            self.M_sf * abundances[e] + self.SN_ej_masses[e]
 
