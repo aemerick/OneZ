@@ -53,13 +53,13 @@ class StarParticle:
         self.properties = {}
 
         self.wind_ejecta_abundances = OrderedDict()
-        self.sn_ejecta_abundances   = OrderedDict()
+        self.sn_ejecta_masses   = OrderedDict()
 
         if not abundances == None:
 
             for e in abundances.keys():
                 self.wind_ejecta_abundances[e] = 0.0
-                self.sn_ejecta_abundances[e]  = 0.0
+                self.sn_ejecta_masses[e]  = 0.0
 
     def evolve(self, t, dt):
         pass
@@ -116,7 +116,7 @@ class Star(StarParticle):
                     #
                     self.set_SNII_properties()
                     self.properties['type'] = 'new_remnant'
-                    SN_mass_loss = self.sn_ejecta_abundances['m_tot']
+                    SN_mass_loss = self.sn_ejecta_masses['m_tot']
                 else:
                     #
                     # Otherwise, form a white dwarf when dead and label as
@@ -148,7 +148,7 @@ class Star(StarParticle):
                         # go Type Ia supernova
                         self.properties['type'] = 'new_SNIa_remnant'
                         self.set_SNIa_properties()
-                        SN_mass_loss = self.sn_ejecta_abundances['m_tot']
+                        SN_mass_loss = self.sn_ejecta_masses['m_tot']
 
         #
         # Compute total mass lost through supernova and wind
@@ -179,8 +179,8 @@ class Star(StarParticle):
             yields = phys.SNIa_yields(self.wind_ejecta_abundances.keys())
 
             i = 0
-            for e in self.sn_ejecta_abundances.keys():
-                self.sn_ejecta_abundances[e] = yields[i]
+            for e in self.sn_ejecta_masses.keys():
+                self.sn_ejecta_masses[e] = yields[i]
                 i = i + 1
 
         else:
@@ -195,8 +195,8 @@ class Star(StarParticle):
                                                   self.wind_ejecta_abundances.keys())
 
             i = 0
-            for e in self.sn_ejecta_abundances.keys():
-                self.sn_ejecta_abundances[e] = yields[i]
+            for e in self.sn_ejecta_masses.keys():
+                self.sn_ejecta_masses[e] = yields[i]
 
         else:
             raise NotImplementedError
@@ -254,7 +254,7 @@ class Star(StarParticle):
             do_wind = True
 
             if (self.M_o < config.stars.AGB_wind_phase_mass_threshold) and config.stars.use_AGB_wind_phase:
-                if age < self.properties['age_agb'] / ( config.units.time):
+                if age + dt < self.properties['age_agb'] / config.units.time:
                     do_wind = False
                     wind_lifetime = 0.0
                 else:
@@ -312,7 +312,6 @@ class Star(StarParticle):
                   'lifetime'  , 'age_agb', 'L_FUV',
                   'Q1', 'Q2', 'E_Q1', 'E_Q2']
 
-        # update SE table to handle arrays 
         
         L, T, R, lifetime, age_agb = SE_TABLE.interpolate([self.M,self.Z], ['L','Teff','R','lifetime','age_agb'])
         self.properties['luminosity']  = L * const.Lsun
@@ -486,7 +485,7 @@ class StarList:
             else:
                 name = name.replace('SN_','')
 
-            func = lambda x, y : x.sn_ejecta_abundances[y]
+            func = lambda x, y : x.sn_ejecta_masses[y]
 
         else:
             func = lambda x, y : x.abundances[y]
