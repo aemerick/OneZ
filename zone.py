@@ -116,6 +116,11 @@ class Zone:
         return None
         
     def _accumulate_new_sn(self):
+        """
+        Looks through all stars, checking to see if any new SN or SNIa
+        occured in current timestep. Adds these to the counters
+        """
+
         star_type = self.all_stars.property_asarray('type')
         
         if np.size(star_type) > 1:
@@ -206,13 +211,17 @@ class Zone:
         return
 
     def _update_metallicity(self):
-    
+ 
         self.Z = self.species_masses['m_metal'] / self.M_gas
 
         return
 
     @property
     def abundances(self):
+        """
+        Returns dictionary of abundances
+        """
+
         abund = {}
 
         for x in self.species_masses.keys():
@@ -221,6 +230,10 @@ class Zone:
         return abund
 
     def Mdot_in_abundances(self, e):
+        """
+        Inflow abundances
+        """
+
         if e == 'H':
             abund = 0.75
         elif e == 'He':
@@ -242,18 +255,27 @@ class Zone:
         return np.sum(self.all_stars.M)
 
     def _evolve_stars(self):
-
-        # advance each star one timestep using
+        """
+        Evolve stars using star list methods, and compute the total
+        amount of ejecta from winds and supernova
+        """
+        #
+        # advance each star one timestep
+        #
         self.all_stars.evolve(self.t, self.dt)
 
+        #
+        # set total dM/dt from all stellar winds
+        #
         self.Mdot_ej = 0.0
         mass_loss_rate = self.all_stars.property_asarray('Mdot_ej') * config.units.time
         self.Mdot_ej = np.sum( mass_loss_rate )
 
+        #
+        # set dM/dt for all species
+        # add up SN ejecta
+        #
         i = 0
-        
-
-
         for e in self.species_masses.keys():
             #
             # add wind ejecta abundaces from "stars" and stars that may have formed SN
@@ -268,10 +290,13 @@ class Zone:
             self.SN_ej_masses[e]  += np.sum(self.all_stars.species_asarray('SN_ej_' + e, 'new_remnant'))
             i = i + 1
 
-
+        return
 
     def _make_new_stars(self):
-        
+        """
+        Sample IMF to make new stars. Includes methods to 
+        handle low SFR's, i.e. when SFR * dt < maximum star mass
+        """
         #
         # compute the amount of gas to convert
         # into stars this timestep
@@ -329,6 +354,10 @@ class Zone:
 
 
     def _assign_particle_id(self):
+        """
+        Generates unique, consecutive ID for particle
+        """
+
         if (not hasattr(self, '_global_id_counter')):
             self._global_id_counter = 0
 
@@ -338,10 +367,17 @@ class Zone:
         return num
 
     def _compute_inflow(self):
+        """
+        Compute inflow rate, as a function of outflow
+        """
+
         self.Mdot_in  = config.zone.inflow_factor * self.Mdot_out
         return
 
     def _compute_outflow(self):
+        """
+        Compute outflow rate, as a function of SFR
+        """
 
         # If either of the discrete SF sampling methods are used,
         # outflow should be determined by mass of stars formed, not
@@ -354,6 +390,9 @@ class Zone:
         return
 
     def _compute_sfr(self):
+        """
+        Compute SFR using method set in config
+        """
 
         if config.zone.star_formation_method == 1:
             # constant, user supplied SFR
@@ -368,6 +407,9 @@ class Zone:
             raise NotImplementedError
 
     def _check_output(self, force = False):
+        """
+        Checks output conditions, output if any are met
+        """
 
         if force:
             self.write_full_dump()
@@ -427,6 +469,10 @@ class Zone:
 
 
     def _accumulate_summary_data(self):
+        """
+        Set up list of all of the data to output. Sum over particle properties
+        to do this.
+        """
 
         self._summary_data = OrderedDict()
 
