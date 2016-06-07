@@ -173,7 +173,7 @@ class Zone:
             #
             self.M_gas += (self.Mdot_in + self.Mdot_ej -\
                            self.Mdot_out) * self.dt - self.M_sf +\
-                           self.SN_ejecta_masses['m_tot']
+                           self.SN_ej_masses['m_tot']
 
             #
             # VI) Check if reservoir is empty
