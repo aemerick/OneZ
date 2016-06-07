@@ -23,10 +23,33 @@ from constants import CONST as const
 
 
 class Zone:
+    """
+    Zone Class
+
+    Single zone gas reservoir attached to star formation and 
+    chemical enrichment models. Parameters for a given simulation
+    can be set using config. Zone initializes a simulation using
+    initial conditions parameters set in config. 
+
+    Once initialized and abundances are set, simulation can be 
+    evolved:
+        >>> sim = Zone()
+        >>> sim.set_initial_abundances(list_of_element_names)
+        >>> sim.evolve()
+ 
+    I/O controlled by config parameters, but can be done manually
+    with a full (pickle) dump or an output of summary statistics:
+
+        >>> sim.write_full_dump()
+        >>> sim.write_summary_output()
+    """
+
 
     def __init__(self):
 
+        #
         # important values and stars
+        #
         self.M_gas     = config.zone.initial_gas_mass
         self.M_DM      = config.zone.initial_dark_matter_mass
         self.all_stars = star.StarList()
@@ -36,13 +59,15 @@ class Zone:
         self.initial_abundances = config.zone.initial_abundances
         self.species_masses     = OrderedDict()
 
+        #
         # some private things
-        self._t_last_dump        = 0.0
-        self._t_last_summary     = 0.0
-        self._cycle_number       = 0
-        self._cycle_last_dump    = 0
-        self._cycle_last_summary = 0
-        self._output_number      = 0
+        #
+        self._t_last_dump           = 0.0
+        self._t_last_summary        = 0.0
+        self._cycle_number          = 0
+        self._cycle_last_dump       = 0
+        self._cycle_last_summary    = 0
+        self._output_number         = 0
         self._summary_output_number = 0
 
         self.t  = config.zone.t_o
@@ -51,10 +76,12 @@ class Zone:
         self._summary_data = {}
         self.Mdot_ej = 0.0
         self.Mdot_ej_masses = OrderedDict()
-        self.SN_ej_abundances   = OrderedDict()
+        self.SN_ej_masses   = OrderedDict()
 
         self.N_SNIa = 0
         self.N_SNII = 0
+
+        return 
 
     def set_initial_abundances(self, elements, abundances = None):
         """
@@ -72,9 +99,9 @@ class Zone:
             if e in abundances.keys():
                 self.initial_abundances[e] = abundances[e]
             elif e == 'H':
-                self.initial_abundances[e] = 0.75
+                self.initial_abundances[e] = 0.75*(1.0 - self.Z)
             elif e == 'He':
-                self.initial_abundances[e] = 0.25
+                self.initial_abundances[e] = 0.25*(1.0 - self.Z)
             elif e == 'm_metal':
                 self.initial_abundances[e] = self.Z
             elif e == 'm_tot':
@@ -99,61 +126,82 @@ class Zone:
 
     def evolve(self):
         """
-           Evolves the system
+           Evolves the system until the end time assigned in config,
+           using a constant timestep. This handles the formation of new
+           stars, gas inflow and outflow, enrichment from stars, and
+           outputs.
         """
 
         while self.t < config.zone.t_final:
 
+            #
+            # Check if output conditions are met
+            #
             self._check_output()
 
-            # step one, evolve stars and compute m_ej
+            #
+            # I) Evolve stars, computing ejecta rates and abundances
+            #
  
             self._evolve_stars()
 
             #
-            # Count number of core collapse and SNIa 
+            # II) Sum up and store number of supernovae
             #
             self._accumulate_new_sn()
 
-            # step two, compute m_sf
+            #
+            # III) Compute SFR and make new stars
+            #
             self._compute_sfr()
+            self.M_sf = self._make_new_stars()
+
+            #
+            # IV) Compute inflow and outflow
+            #
             self._compute_outflow()
             self._compute_inflow()
 
-            # form new stars here
-            M_sf = self._make_new_stars()
-            self.M_sf = M_sf
+            #
+            # V) Add/remove gas from zone due to inflow,
+            #    outflow, SF, and stellar ejecta
+            #
+            self.M_gas += (self.Mdot_in + self.Mdot_ej -\
+                           self.Mdot_out) * self.dt - self.M_sf
 
             #
-            # step three compute total inflow, outflow,
-            #
- 
-            self.M_gas += (self.Mdot_in + self.Mdot_ej -\
-                           self.Mdot_out) * self.dt - M_sf
- 
+            # VI) Check if reservoir is empty
+            # 
             if self.M_gas < 0:
                 self.M_gas = 0.0
 
             # 
-            # do the same for abundances
+            # VII) Compute increase / decrease of individual abundances
             #
             abundances = self.abundances
             for e in self.species_masses.keys():
                 self.species_masses[e] += (self.Mdot_in  * self.Mdot_in_abundances(e) +\
                                            self.Mdot_ej_masses[e] +\
                                            self.Mdot_out * abundances[e]) * self.dt -\
-                                           self.M_sf * abundances[e] + self.SN_ej_abundances[e]
+                                           self.M_sf * abundances[e] + self.SN_ej_masses[e]
 
+            #
+            # VII) i) ensure metallicity is consistent with new abundances
+            #
             self._update_metallicity()
-            # compute abundances
 
-
-            # increase time counter 
+            #
+            # VIII) End of evolution, increment counters
+            #
             self.t += self.dt
             self._cycle_number += 1
 
 
-        self._check_output(force=True) # do final output
+        #
+        # At end of simulation, force summary and dump 
+        # outputs
+        #
+        self._check_output(force=True)
 
         return
 
@@ -177,6 +225,8 @@ class Zone:
             abund = 0.75
         elif e == 'He':
             abund = 0.25
+        elif e == 'm_tot':
+            abund = 1.0
         else:
             abund = 0.0
 
@@ -214,8 +264,8 @@ class Zone:
             self.Mdot_ej_masses[e] += np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'new_remnant') * self.all_stars.property_asarray('Mdot_ej','new_remnant'))
             self.Mdot_ej_masses[e] *= config.units.time
 
-            self.SN_ej_abundances[e]   = np.sum(self.all_stars.species_asarray('SN_ej_' + e, 'new_SNIa_remnant'))
-            self.SN_ej_abundances[e]  += np.sum(self.all_stars.species_asarray('SN_ej_' + e, 'new_remnant'))
+            self.SN_ej_masses[e]   = np.sum(self.all_stars.species_asarray('SN_ej_' + e, 'new_SNIa_remnant'))
+            self.SN_ej_masses[e]  += np.sum(self.all_stars.species_asarray('SN_ej_' + e, 'new_remnant'))
             i = i + 1
 
 
@@ -289,9 +339,19 @@ class Zone:
 
     def _compute_inflow(self):
         self.Mdot_in  = config.zone.inflow_factor * self.Mdot_out
+        return
 
     def _compute_outflow(self):
-        self.Mdot_out = config.zone.mass_loading_factor * self.Mdot_sf
+
+        # If either of the discrete SF sampling methods are used,
+        # outflow should be determined by mass of stars formed, not
+        # rate
+        if config.zone.use_SF_mass_reservoir or config.zone.use_stochastic_mass_sampling:
+            self.Mdot_out = config.zone.mass_loading_factor * self.M_sf / self.dt
+        else:
+            self.Mdot_out = config.zone.mass_loading_factor * self.Mdot_sf
+
+        return
 
     def _compute_sfr(self):
 
