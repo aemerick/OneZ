@@ -138,11 +138,12 @@ class _zone_parameters(_parameters):
         self.initial_gas_mass         = 0.0
         self.initial_dark_matter_mass = 0.0
         self.initial_metallicity      = 0.0
+        self.initial_stellar_mass     = 0.0
         self.species_to_track         = OrderedDict()
         self.initial_abundances       = None
 
         self.imf                      = imf.salpeter()
-        self.star_formation_method    = 1          # 1, 2, 3
+        self.star_formation_method    = 1           # 0, 1, 2, 3
         self.SFH_filename             = None
         self.constant_SFR             = 10.0        # code mass / code time
 
@@ -153,7 +154,6 @@ class _zone_parameters(_parameters):
 
         self.use_stochastic_mass_sampling = True
         self.stochastic_sample_mass   = 250.0
-
 
         # - inflow, outflow, and efficiency parameters
         self.inflow_factor            = 0.05
@@ -235,6 +235,16 @@ class _io_parameters(_parameters):
 
 io  = _io_parameters()
 
+#
+# ------------------ Data Table ----------------------
+#
+class _data_table(_parameters):
+
+    def __init__(self):
+
+        self.yields_mass_limits = [1.0, 25.0]
+
+data = _data_table()
 #
 # ------------- Helper Functions -------------
 #
