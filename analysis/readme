@@ -1,0 +1,7 @@
+should put here a bunch of analysis scripts that can be used
+to unpack the pickled zones to do detaield analysis
+
+really this will most likely be analysis scripts to help
+get at the list of star partcles in the zone to do 
+star-by-star analysis of input energies / ejecta,
+compute IMFs, etc
