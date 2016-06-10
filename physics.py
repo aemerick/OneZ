@@ -107,10 +107,10 @@ def SNIa_probability(t, t_form, lifetime, DTD_slope = 1.0, NSNIa = 0.043):
     dPdt = NSNIa
 
     if (DTD_slope == 1.0):
-        dPdt /= np.log( (const.hubble_time) / lifetime )
+        dPdt /= np.log( (const.hubble_time + lifetime) / lifetime )
     else:
         dPdt *= (- DTD_slope + 1.0)
-        dPdt /= ( (hubble_time)**(-DTD_slope + 1.0) - (lifetime)**(-DTD_slope+1.0))
+        dPdt /= ( (hubble_time + lifetime)**(-DTD_slope + 1.0) - (lifetime)**(-DTD_slope+1.0))
     
     dPdt *= (t - t_form)**(-DTD_slope)
 
