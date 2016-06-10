@@ -1,6 +1,10 @@
 
 __author__ = "aemerick <emerick@astro.columbia.edu>"
 
+# need to allow dimension switch in interpolation routines
+# when one of the dims is exactly equal to one of the grid points
+_interpolation_hack = 0.999999999999 # do this for now
+
 # --- external ---
 import numpy as np
 import gc
@@ -60,6 +64,7 @@ class StarParticle:
             for e in abundances.keys():
                 self.wind_ejecta_abundances[e] = 0.0
                 self.sn_ejecta_masses[e]  = 0.0
+
 
     def evolve(self, t, dt):
         pass
@@ -191,8 +196,14 @@ class Star(StarParticle):
     def set_SNII_properties(self):
 
         if len(self.wind_ejecta_abundances.keys()) > 0:
-            yields =  SN_YIELD_TABLE.interpolate([self.M_o, self.Z],
-                                                  self.wind_ejecta_abundances.keys())
+
+            if self.M_o < config.data.yields_mass_limits[1]:
+                yields =  SN_YIELD_TABLE.interpolate([self.M_o, self.Z],
+                                                      self.wind_ejecta_abundances.keys())
+            else:
+                yields = np.asarray(SN_YIELD_TABLE.interpolate([config.data.yields_mass_limits[1] * _interpolation_hack, self.Z],
+                                                      self.wind_ejecta_abundances.keys()))
+                yields = yields * self.M_o / (config.data.yields_mass_limits[1] * _interpolation_hack)
 
             i = 0
             for e in self.sn_ejecta_masses.keys():
@@ -248,6 +259,8 @@ class Star(StarParticle):
         if not self.properties['type'] == 'star':
             return
 
+        #if (self.M_o <= config.data.yields_mass_limits[1]) and\
+        #   (self.M_o >= config.data.yields_mass_limits[0]):
         if True:
             # need to compute wind velocities for all stars
             # check if star's wind is ON
@@ -299,8 +312,18 @@ class Star(StarParticle):
         self.properties['v_wind']    = vwind
 
     def compute_stellar_wind_yields(self):
-        yields = np.asarray(WIND_YIELD_TABLE.interpolate([self.M_o, self.Z],
-                                                          self.wind_ejecta_abundances.keys()))
+
+        if( self.M_o < config.data.yields_mass_limits[1] ):
+
+            yields = np.asarray(WIND_YIELD_TABLE.interpolate([self.M_o, self.Z],
+                                                              self.wind_ejecta_abundances.keys()))
+        else: 
+            #
+            # For stars off of the grid, scale most massive star
+            # to current mass. 
+            #
+            yields = np.asarray(WIND_YIELD_TABLE.interpolate([config.data.yields_mass_limits[1]*_interpolation_hack, self.Z], self.wind_ejecta_abundances.keys()))
+            yields = yields * self.M_o / (config.data.yields_mass_limits[1] * _interpolation_hack)
 
 
         return np.asarray(yields)
@@ -374,6 +397,8 @@ class Star(StarParticle):
         if self.properties['M_wind_total'] > 0.0:
             for e in self.wind_ejecta_abundances.keys():
                 self.wind_ejecta_abundances[e] /= self.properties['M_wind_total']
+
+
 
         self.properties['Mdot_wind'] = 0.0
         self.properties['v_wind']    = 0.0
