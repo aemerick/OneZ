@@ -141,7 +141,7 @@ class kroupa(IMF):
 
 class salpeter(IMF):
 
-    def __init__(self, alpha = 2.3, M_min = 1.0, M_max = 120.0):
+    def __init__(self, alpha = 1.35, M_min = 1.0, M_max = 120.0):
 
         self.M_min = M_min
         self.M_max = M_max
