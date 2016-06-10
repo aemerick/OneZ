@@ -81,6 +81,15 @@ class Zone:
         self.N_SNIa = 0
         self.N_SNII = 0
 
+        # 
+        # Create stars if starting with initial cluster
+        #
+        for e in config.zone.species_to_track:
+            self.species_masses[e] = 0.0
+
+        if (config.zone.initial_stellar_mass > 0.0):
+            self._make_new_stars( M_sf = config.zone.initial_stellar_mass )
+
         return 
 
     def set_initial_abundances(self, elements, abundances = None):
@@ -171,10 +180,18 @@ class Zone:
             # V) Add/remove gas from zone due to inflow,
             #    outflow, SF, and stellar ejecta
             #
+            abundances = self.abundances
+
+            temp1 = abundances['m_metal'] * 1.0
+
             self.M_gas += (self.Mdot_in + self.Mdot_ej -\
                            self.Mdot_out) * self.dt - self.M_sf +\
                            self.SN_ej_masses['m_tot']
 
+            if not (abundances['m_metal'] == temp1):
+                print "AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH"
+                break
+            
             #
             # VI) Check if reservoir is empty
             # 
@@ -186,7 +203,6 @@ class Zone:
             # 
             # VII) Compute increase / decrease of individual abundances
             #
-            abundances = self.abundances
             for e in self.species_masses.keys():
                 self.species_masses[e] += (self.Mdot_in  * self.Mdot_in_abundances(e) +\
                                            self.Mdot_ej_masses[e] -\
@@ -229,6 +245,8 @@ class Zone:
 
         for x in self.species_masses.keys():
             abund[x] = self.species_masses[x] / self.M_gas
+
+        abund['m_tot'] = 1.0
 
         return abund
 
@@ -293,20 +311,27 @@ class Zone:
             self.SN_ej_masses[e]  += np.sum(self.all_stars.species_asarray('SN_ej_' + e, 'new_remnant'))
             i = i + 1
 
+        if( np.abs( (self.Mdot_ej - self.Mdot_ej_masses['m_tot'])/self.Mdot_ej ) > 1.0E-5 ):
+            print "Ahhhhh getting different values for ejecta masses depending on mode"
+           
+
+
         return
 
-    def _make_new_stars(self):
+    def _make_new_stars(self, M_sf = -1):
         """
         Sample IMF to make new stars. Includes methods to 
         handle low SFR's, i.e. when SFR * dt < maximum star mass
         """
         #
         # compute the amount of gas to convert
-        # into stars this timestep
+        # into stars this timestep. Otherwise, make fixed
+        # mass of stars
         #
-        M_sf = self.dt * self.Mdot_sf
+        if (M_sf < 0.0):
+            M_sf = self.dt * self.Mdot_sf
 
-        if config.zone.use_SF_mass_reservoir:
+        if config.zone.use_SF_mass_reservoir and M_sf > 0.0:
             # 
             # Accumulate mass into "reservoir" and wait until
             # this is surpassed to form stars
@@ -323,7 +348,7 @@ class Zone:
                 M_sf = 0.0
 
         elif (config.zone.use_stochastic_mass_sampling and\
-                M_sf < config.zone.stochastic_sample_mass):
+                M_sf < config.zone.stochastic_sample_mass) and M_sf > 0.0:
             #
             # Prevent undersampling the IMF by requiring minimum mass
             # threshold. Allow SF to happen stochastically when M_sf is
@@ -349,6 +374,7 @@ class Zone:
 
             # add each new star to the star list
             for m in star_masses:
+#                print self.abundances
                 self.all_stars.append( star.Star(m, self.Z, self.abundances,
                                                  tform=self.t,id=self._assign_particle_id()))
 
@@ -397,7 +423,11 @@ class Zone:
         Compute SFR using method set in config
         """
 
-        if config.zone.star_formation_method == 1:
+        if config.zone.star_formation_method == 0:
+            # no star formation
+            self.Mdot_sf = 0.0
+
+        elif config.zone.star_formation_method == 1:
             # constant, user supplied SFR
             self.Mdot_sf = config.zone.constant_SFR
 
