@@ -90,6 +90,8 @@ class Zone:
         if (config.zone.initial_stellar_mass > 0.0):
             self._make_new_stars( M_sf = config.zone.initial_stellar_mass )
 
+        self._compute_dt()
+
         return 
 
     def set_initial_abundances(self, elements, abundances = None):
@@ -147,6 +149,7 @@ class Zone:
         """
 
         while self.t < config.zone.t_final:
+            self._compute_dt()
 
             #
             # Check if output conditions are met
@@ -272,8 +275,16 @@ class Zone:
 
     @property
     def M_stars(self):
-        self._M_stars
         return np.sum(self.all_stars.M)
+
+    def _compute_dt(self):
+        
+        if config.zone.adaptive_timestep:
+            if self.M_stars > 0.0:
+                min_lifetime = np.min( self.all_stars.property_asarray('lifetime', 'star') ) / (config.units.time)
+                self.dt      = min_lifetime / (1.0 * config.zone.timestep_safety_factor)
+
+        return
 
     def _evolve_stars(self):
         """

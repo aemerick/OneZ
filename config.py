@@ -163,7 +163,8 @@ class _zone_parameters(_parameters):
         self.t_o                      = 0.0             # Myr
         self.t_final                  = 1.0E4           # Myr
         self.dt                       = 1.0             # Myr
-
+        self.adaptive_timestep        = True
+        self.timestep_safety_factor   = 4
 
         # assert time units here
 
