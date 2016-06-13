@@ -187,18 +187,15 @@ class Zone:
 
             temp1 = abundances['m_metal'] * 1.0
 
-            self.M_gas += (self.Mdot_in + self.Mdot_ej -\
+            new_gas_mass =  self.M_gas + (self.Mdot_in + self.Mdot_ej_masses['m_tot'] -\
                            self.Mdot_out) * self.dt - self.M_sf +\
                            self.SN_ej_masses['m_tot']
 
-            if not (abundances['m_metal'] == temp1):
-                print "AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH"
-                break
             
             #
             # VI) Check if reservoir is empty
             # 
-            if self.M_gas < 0:
+            if self.M_gas <= 0:
                 self.M_gas = 0.0
                 print "Gas in zone depleted. Ending simulation"
                 break
@@ -207,11 +204,11 @@ class Zone:
             # VII) Compute increase / decrease of individual abundances
             #
             for e in self.species_masses.keys():
-                self.species_masses[e] += (self.Mdot_in  * self.Mdot_in_abundances(e) +\
+                self.species_masses[e] = self.species_masses[e] +  (self.Mdot_in  * self.Mdot_in_abundances(e) +\
                                            self.Mdot_ej_masses[e] -\
                                            self.Mdot_out * abundances[e]) * self.dt -\
                                            self.M_sf * abundances[e] + self.SN_ej_masses[e]
-
+            self.M_gas = new_gas_mass
             #
             # VII) i) ensure metallicity is consistent with new abundances
             #
@@ -249,7 +246,6 @@ class Zone:
         for x in self.species_masses.keys():
             abund[x] = self.species_masses[x] / self.M_gas
 
-        abund['m_tot'] = 1.0
 
         return abund
 
@@ -280,8 +276,10 @@ class Zone:
     def _compute_dt(self):
         
         if config.zone.adaptive_timestep:
-            if self.M_stars > 0.0:
-                min_lifetime = np.min( self.all_stars.property_asarray('lifetime', 'star') ) / (config.units.time)
+            lifetimes = self.all_stars.property_asarray('lifetime','star')
+
+            if np.size(lifetimes) > 1:
+                min_lifetime = np.min( lifetimes ) / (config.units.time)
                 self.dt      = min_lifetime / (1.0 * config.zone.timestep_safety_factor)
 
         return
@@ -322,9 +320,6 @@ class Zone:
             self.SN_ej_masses[e]  += np.sum(self.all_stars.species_asarray('SN_ej_' + e, 'new_remnant'))
             i = i + 1
 
-        if( np.abs( (self.Mdot_ej - self.Mdot_ej_masses['m_tot'])/self.Mdot_ej ) > 1.0E-5 ):
-            print "Ahhhhh getting different values for ejecta masses depending on mode"
-           
 
 
         return
@@ -547,8 +542,8 @@ class Zone:
         # now do all of the abundances
         
         for e in self.abundances.keys():
-
             self._summary_data[e] = self.abundances[e]
+            self._summary_data[e + '_mass'] = self.species_masses[e]
 
         return 
 
