@@ -3,7 +3,7 @@ __author__ = "aemerick <emerick@astro.columbia.edu>"
 
 # need to allow dimension switch in interpolation routines
 # when one of the dims is exactly equal to one of the grid points
-_interpolation_hack = 0.999999999999 # do this for now
+_interpolation_hack = 0.999999999 # do this for now
 
 # --- external ---
 import numpy as np
@@ -180,6 +180,9 @@ class Star(StarParticle):
     def set_SNIa_properties(self):
         # need to rename and combine this and functions below
 
+        if not config.stars.use_snIa:
+            return
+
         if len(self.wind_ejecta_abundances.keys()) > 0:
             yields = phys.SNIa_yields(self.wind_ejecta_abundances.keys())
 
@@ -195,6 +198,9 @@ class Star(StarParticle):
 
     def set_SNII_properties(self):
 
+        if not config.stars.use_snII:
+            return
+
         if len(self.wind_ejecta_abundances.keys()) > 0:
 
             if self.M_o < config.data.yields_mass_limits[1]:
@@ -208,6 +214,7 @@ class Star(StarParticle):
             i = 0
             for e in self.sn_ejecta_masses.keys():
                 self.sn_ejecta_masses[e] = yields[i]
+                i = i + 1
 
         else:
             raise NotImplementedError
@@ -256,7 +263,7 @@ class Star(StarParticle):
 
     def stellar_wind_parameters(self, age, dt):
 
-        if not self.properties['type'] == 'star':
+        if not self.properties['type'] == 'star' or not config.stars.use_stellar_winds:
             return
 
         #if (self.M_o <= config.data.yields_mass_limits[1]) and\
