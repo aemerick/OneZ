@@ -41,8 +41,6 @@ def panel_plot(xname, yname, data, dim = [0,0], logscale = True,
 
     i = 0
 
-    
-    print xname, yname
     for a, x, y in zip(ax.flatten(), xname, yname):
 
         if '/' in x:
