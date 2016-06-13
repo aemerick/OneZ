@@ -243,6 +243,10 @@ class _star_particle_parameters(_parameters):
         self.DTD_slope                     = 1.0
         self.NSNIa                         = 0.043
 
+        self.use_snII                      = True
+        self.use_snIa                      = True
+
+        self.use_stellar_winds             = True
         self.use_AGB_wind_phase            = True
         self.AGB_wind_phase_mass_threshold = 8.0
         
