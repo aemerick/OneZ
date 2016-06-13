@@ -75,6 +75,7 @@ class Zone:
 
         self._summary_data = {}
         self.Mdot_ej = 0.0
+        self.Mdot_DM = 0.0
         self.Mdot_ej_masses = OrderedDict()
         self.SN_ej_masses   = OrderedDict()
 
@@ -178,6 +179,7 @@ class Zone:
             #
             self._compute_outflow()
             self._compute_inflow()
+            self._compute_mdot_dm()
 
             #
             # V) Add/remove gas from zone due to inflow,
@@ -209,6 +211,8 @@ class Zone:
                                            self.Mdot_out * abundances[e]) * self.dt -\
                                            self.M_sf * abundances[e] + self.SN_ej_masses[e]
             self.M_gas = new_gas_mass
+            self.M_DM  = self.M_DM + self.Mdot_DM * self.dt
+
             #
             # VII) i) ensure metallicity is consistent with new abundances
             #
@@ -228,6 +232,14 @@ class Zone:
         self._check_output(force=True)
 
         return
+
+    @property
+    def current_redshift(self):
+
+        t_h = config.units.hubble_time
+        z   = (2.0 * t_h / (3.0*self.t))**(2.0/3.0) - 1.0
+
+        return z
 
     def _update_metallicity(self):
  
@@ -401,6 +413,26 @@ class Zone:
         self._global_id_counter += 1
         return num
 
+    def _compute_mdot_dm(self):
+        """
+        For cosmological simulations, computes growth of DM halo
+        """
+
+        self.Mdot_DM = 0.0
+        
+        if not config.zone.cosmological_evolution:
+            return
+
+        self.Mdot_DM = 46.1 * ( self.M_DM / 1.0E12 )**(1.1) *\
+                       (1.0 + 1.11 * self.current_redshift) *\
+              np.sqrt( config.units.omega_matter * (1.0 + self.current_redshift)**3 + config.units.omega_lambda)
+
+        self.Mdot_DM *= const.yr_to_s
+
+        self.Mdot_DM /= config.units.time
+
+        return
+
     def _compute_inflow(self):
         """
         Compute inflow rate, as a function of outflow
@@ -417,12 +449,26 @@ class Zone:
         # If either of the discrete SF sampling methods are used,
         # outflow should be determined by mass of stars formed, not
         # rate
+
+        factor = config.zone.mass_loading_factor
+
+        if config.zone.cosmological_evolution:
+            factor = factor * (1.0 + self.current_redshift)**(-config.zone.mass_loading_index/2.0)
+
         if config.zone.use_SF_mass_reservoir or config.zone.use_stochastic_mass_sampling:
             self.Mdot_out = config.zone.mass_loading_factor * self.M_sf / self.dt
         else:
             self.Mdot_out = config.zone.mass_loading_factor * self.Mdot_sf
 
         return
+
+    @property
+    def t_dyn(self):
+        if not config.zone.cosmological_evolution:
+            print "Error: Cannot compute cosmological dynamical time with non-cosmological simulation"
+            raise NotImplementedError
+
+        return 0.1 * config.units.hubble_time * (1.0 + self.current_redshift)**(-3.0/2.0)
 
     def _compute_sfr(self):
         """
@@ -438,10 +484,13 @@ class Zone:
             self.Mdot_sf = config.zone.constant_SFR
 
         elif config.zone.star_formation_method == 2 :
-            print "Cosmological SFR evolution not yet implemented"
-            raise NotImplementedError
+            self.Mdot_sf = config.zone.SFR_efficiency * self.M_gas
 
-        elif config.zone.star_formation_method == 3 :
+        elif config.zone.star_formation_method == 3:
+            self.Mdot_sf = self.zone.SFR_dyn_efficiency * self.M_gas / self.t_dyn
+ 
+
+        elif config.zone.star_formation_method == 4 :
             print "SFH from file not yet implemented"
             raise NotImplementedError
 
