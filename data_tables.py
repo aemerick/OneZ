@@ -451,20 +451,6 @@ class StellarYieldsTable(DataTable):
         for element in list(data.dtype.names):
             self.y[element]   = data[element].reshape(tuple(self.nbins.values()))
 
-        # enforce mass consistency:
-        for i in np.arange(np.size(self.x['mass'])):
-            for j in np.arange(np.size(self.x['metallicity'])):
-                self.y['m_tot'][i][j]   = 0.0
-                self.y['m_metal'][i][j] = 0.0
-
-                for e in list(data.dtype.names):
-    
-                    if e != 'm_tot' and e != 'm_metal':
-                        self.y['m_tot'][i][j] += self.y[e][i][j]
-
-                        if e != 'H' and e != 'He':
-                            self.y['m_metal'][i][j] += self.y[e][i][j]
-
 
         return None
 
