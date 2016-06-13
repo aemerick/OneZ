@@ -143,6 +143,10 @@ class _zone_parameters(_parameters):
         self.initial_abundances       = None
 
         self.imf                      = imf.salpeter()
+        self.M_min                   = self.imf.M_min
+        self.M_max                   = self.imf.M_max
+        self.alpha                   = self.imf.alpha
+
         self.star_formation_method    = 1           # 0, 1, 2, 3
         self.SFH_filename             = None
         self.constant_SFR             = 10.0        # code mass / code time
@@ -168,6 +172,37 @@ class _zone_parameters(_parameters):
 
         # assert time units here
 
+    @property
+    def M_min(self):
+        return self.__M_min
+    
+    @property
+    def M_max(self):
+        return self.__M_max
+
+    @property
+    def alpha(self):
+        return self.__alpha
+
+    @M_min.setter
+    def M_min(self, value):
+        self.__M_min = value
+        self.imf.M_min = self.__M_min
+        return 
+
+    @M_max.setter
+    def M_max(self, value):
+        self.__M_max = value
+        self.imf.M_max = self.__M_max
+        return
+
+    @alpha.setter
+    def alpha(self, value):
+        self.__alpha = value
+        self.imf.alpha = self.__alpha
+        return
+
+    
 zone = _zone_parameters()
 
 #
