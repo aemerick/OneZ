@@ -44,7 +44,7 @@ class IMF:
 
             for i in np.arange(N):
                 bin = _find_bin(random_numbers[i], self._tabulated_imf)
-                stars[i] = 10.0**(bin * self._tabulated_dm)
+                stars[i] = 10.0**(bin * self._tabulated_dm + self._m_o)
 
         elif M != None and N == None:
 
@@ -57,7 +57,7 @@ class IMF:
                rnum = np.random.rand()
 
                bin = _find_bin(rnum, self._tabulated_imf)
-               stars[i] = 10.0**(bin * self._tabulated_dm)
+               stars[i] = 10.0**(bin * self._tabulated_dm + self._m_o)
                total_mass = np.sum(stars)
 
            # remove trailing stars
@@ -88,6 +88,7 @@ class IMF:
         self._tabulated_dm  = dm
         self._tabulated_m   = m
         self._tabulated_imf = IMF_vals
+        self._m_o           = m_o
         
     def imf(self, M):
         """
