@@ -48,7 +48,16 @@ class _units(_parameters):
         self.time      = const.yr_to_s * 1.0E6
         self.mass      = 1.0
 
+
+        self.omega_matter = 0.258 # WMAP 5 year
+        self.omega_lambda = 0.742 # WMAP 5 year
+        self.H_o          = 69.32 # km / s / Mpc
+
         return
+
+    @property
+    def hubble_time(self):
+        return (1.0 / (self.H_o * (const.km) / (const.Mpc))) / (self.time)
 
 units = _units()
 #
@@ -83,7 +92,7 @@ class _zone_parameters(_parameters):
             schemes:
 
             1) constant, uniform SFR throughout evolution
-            2) SFR computed cosmologically
+            2) SFR computed based on gas mass and input SFR rate efficiency (cosmological)
             3) SFH table provided using SFH_filename parameter where
                either two columns are provided, time and SFR, or 
                time and stellar mass. Column headers must be named
@@ -152,17 +161,22 @@ class _zone_parameters(_parameters):
         self.constant_SFR             = 10.0        # code mass / code time
 
         self.cosmological_evolution   = False       # on or off
+        self.initial_redshift         = 10000       #
+        self.final_redshift           = 0.0
 
         self.use_SF_mass_reservoir     = False
         self.SF_mass_reservoir_size    = 1000.0
 
         self.use_stochastic_mass_sampling = True
-        self.stochastic_sample_mass   = 250.0
+        self.stochastic_sample_mass       = 200.0
 
         # - inflow, outflow, and efficiency parameters
-        self.inflow_factor            = 0.05
-        self.mass_loading_factor      = 0.1
-        self.SFR_efficiency           = 0.01
+        self.inflow_factor            = 1.03            # ratio of inflow to outflow
+        self.mass_loading_factor      = 15.7            # constant if non-cosmological
+                                                        # value at z = 0 if cosmological
+        self.mass_loading_index       = 3.32            # index to redshift power law
+        self.SFR_efficiency           = 6.10E-4         #  1 / Myr
+        self.SFR_dyn_efficiency       = 0.0950          # unitless (sf / f_dyn)
 
         self.t_o                      = 0.0             # Myr
         self.t_final                  = 1.0E4           # Myr
@@ -237,7 +251,7 @@ class _star_particle_parameters(_parameters):
 
     def __init__(self):
     
-        self.SNII_mass_threshold           = 8.0    
+        self.SNII_mass_threshold           = 8.0
         self.SNIa_candidate_mass_bounds    = [3.0, 8.0]
 
         self.DTD_slope                     = 1.0
