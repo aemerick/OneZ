@@ -343,7 +343,7 @@ class RadiationData(DataTable):
         # now load from each file - 
         # q0 and q1 files atm have reverse ordered metalliciites atm
         # fuv flux file is in value order - this needs to be changes 5/2016
-        for name in self.y.keys():
+        for name in self.y.iterkeys():
             data = np.genfromtxt(self.data_dir + self._data_file_names[name],
                                  usecols=(2,3,4,5,6,7,8,9,10,11))
 
