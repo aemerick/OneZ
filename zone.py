@@ -110,7 +110,7 @@ class Zone:
             abundances = {'empty' : 0.0}
 
         for e in elements:
-            if e in abundances.keys():
+            if e in abundances.iterkeys():
                 self.initial_abundances[e] = abundances[e]
             elif e == 'H':
                 self.initial_abundances[e] = 0.75*(1.0 - self.Z)
@@ -124,7 +124,7 @@ class Zone:
                 self.initial_abundances[e] = 0.0
 
 
-        for e in self.initial_abundances.keys():
+        for e in self.initial_abundances.iterkeys():
             self.species_masses[e] = self.M_gas * self.initial_abundances[e]
 
         return None
@@ -209,7 +209,7 @@ class Zone:
             # 
             # VII) Compute increase / decrease of individual abundances
             #
-            for e in self.species_masses.keys():
+            for e in self.species_masses.iterkeys():
                 self.species_masses[e] = self.species_masses[e] +  (self.Mdot_in  * self.Mdot_in_abundances(e) +\
                                            self.Mdot_ej_masses[e] -\
                                            self.Mdot_out * abundances[e]) * self.dt -\
@@ -266,7 +266,7 @@ class Zone:
 
         abund = {}
 
-        for x in self.species_masses.keys():
+        for x in self.species_masses.iterkeys():
             abund[x] = self.species_masses[x] / self.M_gas
 
 
@@ -312,40 +312,58 @@ class Zone:
         Evolve stars using star list methods, and compute the total
         amount of ejecta from winds and supernova
         """
+
+        #
+        # zero mass accumulators before evolving
+        # 
+        for key in self.species_masses.iterkeys():
+            self.Mdot_ej_masses[key] = 0.0
+            self.SN_ej_masses[key]   = 0.0
+ 
         #
         # advance each star one timestep
+        # optional mass arguments mean stars add 
+        # to ejecta bins during evolution (winds and SN)
+        # to limit number of loops through star list
         #
-        self.all_stars.evolve(self.t, self.dt)
+        self.all_stars.evolve(self.t, self.dt, ej_masses = self.Mdot_ej_masses,  
+                                               sn_masses = self.SN_ej_masses)
 
+        self.Mdot_ej = self.Mdot_ej_masses['m_tot'] * config.units.time
+     
+        for e in self.species_masses.iterkeys():
+            self.Mdot_ej_masses[e] *= config.units.time
+
+        return
         #
         # set total dM/dt from all stellar winds
         #
-        self.Mdot_ej = 0.0
-        mass_loss_rate = self.all_stars.property_asarray('Mdot_ej') * config.units.time
-        self.Mdot_ej = np.sum( mass_loss_rate )
+      #  self.Mdot_ej = 0.0
+     #   mass_loss_rate = self.all_stars.property_asarray('Mdot_ej') * config.units.time
+    #    self.Mdot_ej = np.sum( mass_loss_rate )
 
         #
         # set dM/dt for all species
         # add up SN ejecta
         #
-        i = 0
-        for e in self.species_masses.keys():
+   #     i = 0
+   #     for e in self.species_masses.iterkeys():
             #
             # add wind ejecta abundaces from "stars" and stars that may have formed SN
             # but were alive for part of timestep.
             #
-            self.Mdot_ej_masses[e]  = np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'star') * self.all_stars.property_asarray('Mdot_ej','star'))
-            self.Mdot_ej_masses[e] += np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'new_WD')      * self.all_stars.property_asarray('Mdot_ej', 'new_WD'))
-            self.Mdot_ej_masses[e] += np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'new_remnant') * self.all_stars.property_asarray('Mdot_ej','new_remnant'))
-            self.Mdot_ej_masses[e] *= config.units.time
-
-            self.SN_ej_masses[e]   = np.sum(self.all_stars.species_asarray('SN_ej_' + e, 'new_SNIa_remnant'))
-            self.SN_ej_masses[e]  += np.sum(self.all_stars.species_asarray('SN_ej_' + e, 'new_remnant'))
-            i = i + 1
-
-
-
-        return
+    #        self.Mdot_ej_masses[e]  = np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'star') * self.all_stars.property_asarray('Mdot_ej','star'))
+   #         self.Mdot_ej_masses[e] += np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'new_WD')      * self.all_stars.property_asarray('Mdot_ej', 'new_WD'))
+  #          self.Mdot_ej_masses[e] += np.sum(self.all_stars.species_asarray('Mdot_ej_' + e, 'new_remnant') * self.all_stars.property_asarray('Mdot_ej','new_remnant'))
+ #           self.Mdot_ej_masses[e] *= config.units.time
+#
+#            self.SN_ej_masses[e]   = np.sum(self.all_stars.species_asarray('SN_ej_' + e, 'new_SNIa_remnant'))
+#            self.SN_ej_masses[e]  += np.sum(self.all_stars.species_asarray('SN_ej_' + e, 'new_remnant'))
+#            i = i + 1
+#
+#
+#
+#        return
 
     def _make_new_stars(self, M_sf = -1):
         """
@@ -601,7 +619,7 @@ class Zone:
 
         # now do all of the abundances
         
-        for e in self.abundances.keys():
+        for e in self.abundances.iterkeys():
             self._summary_data[e] = self.abundances[e]
             self._summary_data[e + '_mass'] = self.species_masses[e]
 

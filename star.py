@@ -178,6 +178,30 @@ class Star(StarParticle):
         if self.properties['type'] == 'new_WD':
             self.M = phys.white_dwarf_mass(self.M_o)
 
+        #
+        # add in ejected mass for 
+        #   1) winds
+        #   2) SN explosion
+        # 
+        if self.properties['type'] == 'star' or\
+           self.properties['type'] == 'new_WD':
+
+            for key in ej_masses.iterkeys():
+                ej_masses[key] += self.wind_ejecta_abundances[key] * self.Mdot_ej
+
+        elif self.properites['type'] == 'new_remnant':
+            # sn may have both winds and SN ejecta if explosion 
+            # happens between timesteps (almost always)
+            for key in ej_masses.iterkeys():
+                ej_masses[key] += self.wind_ejecta_abundances[key] * self.Mdot_ej
+                sn_masses[key] += self.sn_ejecta_masses[key]
+
+        elif self.properties['type'] == 'new_SNIa_remnant':
+
+            for key in sn_masses.iterkeys():
+                sn_masses[key] += self.sn_ejecta_masses[key]
+            
+
 
         return None
     def set_SNIa_properties(self):
@@ -435,9 +459,9 @@ class StarList:
 
         return
 
-    def evolve(self, t, dt):
+    def evolve(self, t, dt, *args, **kwargs):
 
-        map( lambda x : x.evolve(t, dt), self.stars_iterable)
+        map( lambda x : x.evolve(t, dt, *args, **kwargs), self.stars_iterable)
 
         return
 
