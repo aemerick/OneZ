@@ -11,7 +11,7 @@ import imf as imf
 #
 # --------- Superclass for all parameters -------
 #
-class _parameters:
+class _parameters(object):
 
     def __init__(self):
         pass
@@ -21,6 +21,17 @@ class _parameters:
 
     def reset_parameters_to_default(self):
         self.__init__()
+
+class _globals(_parameters):
+    """
+    Glbal vals
+    """
+
+    def __init__(self):
+
+        self.time = 0.0
+
+global_values = _globals()
 
 #
 # ----------- Units ----------------------
@@ -184,7 +195,24 @@ class _zone_parameters(_parameters):
         self.adaptive_timestep        = True
         self.timestep_safety_factor   = 4
 
+
+        self._maximum_stars      = None
+        self.optimize            = True
+
         # assert time units here
+
+    @property
+    def maximum_stars(self):
+
+        if self._maximum_stars == None:
+            return self._maximum_stars
+        else:
+            return int(self._maximum_stars)
+
+    @maximum_stars.setter
+    def maximum_stars(self, val):
+        self._maximum_stars = val
+        return
 
     @property
     def M_min(self):

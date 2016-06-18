@@ -93,6 +93,8 @@ class Zone:
 
         self._compute_dt()
 
+        self._update_globals()
+
         return 
 
     def set_initial_abundances(self, elements, abundances = None):
@@ -133,14 +135,16 @@ class Zone:
         occured in current timestep. Adds these to the counters
         """
 
-        star_type = self.all_stars.property_asarray('type')
-        
-        if np.size(star_type) > 1:
-            self.N_SNIa += len( star_type[ star_type == 'new_SNIa_remnant'] )
-            self.N_SNII += len( star_type[ star_type == 'new_remnant']      )
+
+        star_type = list(self.all_stars.property_asarray('type'))
+
+        #if np.size(star_type) > 1:
+        self.N_SNIa += star_type.count('new_SNIa_remnant')
+        self.N_SNII += star_type.count('new_remnant')
         
         return
 
+    @profile
     def evolve(self):
         """
            Evolves the system until the end time assigned in config,
@@ -223,6 +227,7 @@ class Zone:
             #
             self.t += self.dt
             self._cycle_number += 1
+            self._update_globals()
 
 
         #
@@ -230,6 +235,12 @@ class Zone:
         # outputs
         #
         self._check_output(force=True)
+
+        return
+
+    def _update_globals(self):
+
+        config.global_values.time = self.t
 
         return
 
@@ -279,7 +290,7 @@ class Zone:
     
     @property
     def N_stars(self):
-        return np.size(self.all_stars.stars)
+        return self.all_stars.N_stars
 
     @property
     def M_stars(self):
@@ -393,7 +404,7 @@ class Zone:
             # add each new star to the star list
             for m in star_masses:
 #                print self.abundances
-                self.all_stars.append( star.Star(m, self.Z, self.abundances,
+                self.all_stars.add_new_star( star.Star(m, self.Z, self.abundances,
                                                  tform=self.t,id=self._assign_particle_id()))
 
 
@@ -573,7 +584,7 @@ class Zone:
         self._summary_data['Z_gas']   = self.Z
         self._summary_data['Z_star']  = np.average( self.all_stars.Z() )
 
-        self._summary_data['N_star']  = len(self.all_stars.stars)
+        self._summary_data['N_star']  = self.N_stars
 
         self._summary_data['N_SNIa']  = self.N_SNIa
         self._summary_data['N_SNII']  = self.N_SNII

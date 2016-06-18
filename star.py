@@ -9,6 +9,8 @@ _interpolation_hack = 0.999999999 # do this for now
 import numpy as np
 import gc
 from collections import OrderedDict
+import itertools
+
 
 # --- internal ---
 import data_tables as DT
@@ -86,6 +88,7 @@ class Star(StarParticle):
 
         self._assign_properties()
 
+    @profile
     def evolve(self, t, dt):
         """
         Evolve 
@@ -336,6 +339,7 @@ class Star(StarParticle):
         return np.asarray(yields)
 
 
+    @profile
     def _assign_properties(self):
 
         p_list = ['luminosity', 'radius',
@@ -411,46 +415,98 @@ class Star(StarParticle):
         self.properties['v_wind']    = 0.0
 
 class StarList:
+    """
+    List of star objects with useful functions to handle operating
+    on many stars at once.
+    """
 
-    def __init__(self, maximum_stars = None, conserve_memory = False):
-                          #
-        if maximum_stars != None and conserve_memory:
-            self.stars = [None] * maximum_stars
+    def __init__(self):
+
+        if config.zone.maximum_stars != None and config.zone.optimize:
+            self._stars           = [None] * config.zone.maximum_stars
+            self._stars_optimized = True
         else:
-            self.stars          = []
-
-        if maximum_stars == None:
-            maximum_stars = 1.0E99
-
-        self._maximum_stars   = None # make global (config) parameters once working
-
-        self._conserve_memory = conserve_memory
+            self._stars           = []
+            self._stars_optimized = False
 
 
-    def evolve(self, t, dt):
-        map( lambda x : x.evolve(t, dt), self.stars)
+        self._are_there_new_stars = False
+        self._N_stars             = 0
+
         return
 
-    def append(self, new_star):
+    def evolve(self, t, dt):
+
+        map( lambda x : x.evolve(t, dt), self.stars_iterable)
+
+        return
+
+    @property
+    def stars(self):
+        if self._stars_optimized:
+            return self._stars[:self.N_stars]
+        else:
+            return self._stars
+
+    @property
+    def stars_iterable(self):
+        return itertools.islice(self._stars, None, self.N_stars)
+
+    @property
+    def N_stars(self):
+
+        #if self._are_there_new_stars:
+
+        #    if self._stars_optimized :
+        #        self._N_stars = len(self._stars) - self._stars.count(None)
+        #    else:
+        #        self._N_stars = len(self._stars)
+
+        return self._N_stars
+
+
+    def _values_outdated(self):
+
+        return self._internal_time < config.global_values.time
+
+    def add_new_star(self, new_star):
+        """
+        Adds a new star to the list. Either appends the star to the list
+        or fills it in the list of memory optimization is on and a maximum
+        number of stars is provided
+        """
+
+        if self._stars_optimized:
+            #
+            # add to last element in list
+            #
+            self._stars[ self.N_stars ] = new_star
+        else:
+
+            self._append(new_star)
+
+        self._N_stars += 1
+
+        return
+
+
+    def _append(self, new_star):
         # apparently a possible bug in appending objects to list with gc
         gc.disable()
-        self.stars.append(new_star)
+        self._stars.append(new_star)
         gc.enable()
         return
 
+    @profile
     def property_asarray(self, name, star_type = 'all'):
 
-        if len(self.stars) == 0:
-            return 0.0
-        
-        if not star_type == 'all': # only look over a subselection of stars
-            _star_subset = [x for x in self.stars if x.properties['type']== star_type]
+        if self.N_stars == 0:
+            return np.zeros(1)
+
+        if not star_type == 'all':
+            _star_subset = self.get_subset( lambda x : x.properties['type'] != star_type )
         else:
-            _star_subset = self.stars        
-
-        if len(_star_subset) == 0:
-            return np.asarray(0.0)
-
+            _star_subset = self.stars_iterable
 
         if name == 'mass' or name == 'Mass' or name == 'M':
             array = np.asarray( [x.M for x in _star_subset])
@@ -468,17 +524,27 @@ class StarList:
             except KeyError:
                 print name, "star property or value not understood for " + star_type + " stars"
                 raise KeyError
-        
-        return array
-        
+
+        #
+        # as can happen if there are no stars in subset
+        #
+        if len(array) == 0:
+            if name == 'type':
+                return [None]
+            else:
+                return np.zeros(1) 
+        else:
+            return array
+
     def property_names(self, mode='unique', star_type = 'all'):
-        if len(self.stars) == 0:
+        if self.N_stars == 0:
             return None
 
         if not star_type == 'all':
-            _star_subset = [x for x in self.stars if x.properties['type'] == star_type]
+            _star_subset = self.get_subset( lambda x : x.properties['type'] != star_type )
         else:
-            _star_subset = self.stars
+            _star_subset = self.stars_iterable
+
 
         all_keys = [x.properties.keys() for x in _star_subset]
         unique_keys = np.unique([item for sublist in all_keys for item in sublist])
@@ -489,19 +555,38 @@ class StarList:
             i = 0
             return np.unique([element for element in unique_keys if element in all_keys[i] for i in np.arange(0,len(all_keys))])
 
+    def get_subset(self, expr):
+        """
+        Get subset of stars that have a FALSE value for the desired expression.
+        Previously did list method, but now attempting to handle this with an iterable
+        to (hopefully) substantially improve things. For example, to get stars
+        that are of type star:
 
+            >> obj.get_subset( lambda x : x.properties['type'] != 'star' )
+
+        Or to get stars between (and including) 10 and 20 solar masses ( M over [10,20]):
+
+            >> obj.get_subset( lambda x : (x.M < 10.0) + (x.M > 20.0) )
+
+        Returns iterable
+        """
+
+#        return [ x for x in self.stars_iterable if not expr(x) ]
+
+        return itertools.ifilterfalse( expr,  self.stars)
+
+    
+
+    @profile
     def species_asarray(self, name, star_type = 'all'):
         """
         Return either the ejecta rates or chemical tags for stars as array
         """
-
-        if not star_type == 'all': # only look over a subselection of stars
-            _star_subset = [x for x in self.stars if x.properties['type']== star_type]
+        
+        if not star_type == 'all':
+            _star_subset = self.get_subset( lambda x : x.properties['type'] != star_type )
         else:
-            _star_subset = self.stars
-
-        if len(_star_subset) == 0:
-            return np.zeros(len(name))
+            _star_subset = self.stars_iterable
 
         if 'Mdot' in name:
             if 'ej' in name:
@@ -510,32 +595,36 @@ class StarList:
                 name = name.replace('Mdot_','')
 
             func = lambda x , y : x.wind_ejecta_abundances[y]
-
+    
         elif 'SN' in name:
             if 'ej' in name:
                 name = name.replace('SN_ej_','')
             else:
                 name = name.replace('SN_','')
-
+ 
             func = lambda x, y : x.sn_ejecta_masses[y]
 
         else:
             func = lambda x, y : x.abundances[y]
 
-        return np.asarray([ func(x, name) for x in _star_subset])
+        return_list = np.asarray([ func(x, name) for x in _star_subset])
 
+        if len(return_list) == 0:
+            return np.zeros(1)
+        else:
+            return return_list
 
     def Z(self):
         """
         List comprehension to return all metallicities as numpy array
         """
-        return np.asarray([x.Z for x in self.stars])
+        return np.asarray([x.Z for x in self.stars_iterable])
 
     def M(self):
         """
         List comprehension to return all masses as np array
         """
-        return np.asarray([x.M for x in self.stars])
+        return np.asarray([x.M for x in self.stars_iterable])
     
 
 
