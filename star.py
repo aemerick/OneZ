@@ -63,12 +63,12 @@ class StarParticle:
 
         if not abundances == None:
 
-            for e in abundances.keys():
+            for e in abundances.iterkeys():
                 self.wind_ejecta_abundances[e] = 0.0
                 self.sn_ejecta_masses[e]  = 0.0
 
 
-    def evolve(self, t, dt):
+    def evolve(self, t, dt, ej_masses = {}, sn_masses = {}):
         pass
 
     def _assign_properties(self):
@@ -89,7 +89,7 @@ class Star(StarParticle):
         self._assign_properties()
 
     @profile
-    def evolve(self, t, dt):
+    def evolve(self, t, dt, ej_masses = {}, sn_masses = {}):
         """
         Evolve 
         """
@@ -190,7 +190,7 @@ class Star(StarParticle):
             yields = phys.SNIa_yields(self.wind_ejecta_abundances.keys())
 
             i = 0
-            for e in self.sn_ejecta_masses.keys():
+            for e in self.sn_ejecta_masses.iterkeys():
                 self.sn_ejecta_masses[e] = yields[i]
                 i = i + 1
 
@@ -215,7 +215,7 @@ class Star(StarParticle):
                 yields = yields * self.M_o / (config.data.yields_mass_limits[1] * _interpolation_hack)
 
             i = 0
-            for e in self.sn_ejecta_masses.keys():
+            for e in self.sn_ejecta_masses.iterkeys():
                 self.sn_ejecta_masses[e] = yields[i]
                 i = i + 1
 
@@ -399,14 +399,14 @@ class Star(StarParticle):
         yields = self.compute_stellar_wind_yields()
         
         i = 0 
-        for e in self.wind_ejecta_abundances.keys():
+        for e in self.wind_ejecta_abundances.iterkeys():
             self.wind_ejecta_abundances[e] = yields[i]
             i = i + 1
 
         # convert to abundances
         self.properties['M_wind_total'] = self.wind_ejecta_abundances['m_tot']
         if self.properties['M_wind_total'] > 0.0:
-            for e in self.wind_ejecta_abundances.keys():
+            for e in self.wind_ejecta_abundances.iterkeys():
                 self.wind_ejecta_abundances[e] /= self.properties['M_wind_total']
 
 
