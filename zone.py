@@ -12,7 +12,12 @@ __author__ = "aemerick <emerick@astro.columbia.edu>"
 # external
 import numpy as np
 from collections import OrderedDict
-import pickle 
+
+try:
+    import cPickle as pickle
+except:
+    print "WARNING: cPickle unavailable, using pickle - data dumps will be slow"
+    import pickle
 
 # internal
 import imf  as imf
