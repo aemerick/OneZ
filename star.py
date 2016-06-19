@@ -189,7 +189,7 @@ class Star(StarParticle):
             for key in ej_masses.iterkeys():
                 ej_masses[key] += self.wind_ejecta_abundances[key] * self.Mdot_ej
 
-        elif self.properites['type'] == 'new_remnant':
+        elif self.properties['type'] == 'new_remnant':
             # sn may have both winds and SN ejecta if explosion 
             # happens between timesteps (almost always)
             for key in ej_masses.iterkeys():
@@ -595,9 +595,9 @@ class StarList:
         Returns iterable
         """
 
-#        return [ x for x in self.stars_iterable if not expr(x) ]
+        return [ x for x in self.stars_iterable if not expr(x) ]
 
-        return itertools.ifilterfalse( expr,  self.stars)
+#        return itertools.ifilterfalse( expr,  self.stars)
 
     
 
