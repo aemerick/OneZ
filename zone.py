@@ -149,7 +149,6 @@ class Zone:
         
         return
 
-    @profile
     def evolve(self):
         """
            Evolves the system until the end time assigned in config,

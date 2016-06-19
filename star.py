@@ -88,7 +88,6 @@ class Star(StarParticle):
 
         self._assign_properties()
 
-    @profile
     def evolve(self, t, dt, ej_masses = {}, sn_masses = {}):
         """
         Evolve 
@@ -363,7 +362,6 @@ class Star(StarParticle):
         return np.asarray(yields)
 
 
-    @profile
     def _assign_properties(self):
 
         p_list = ['luminosity', 'radius',
@@ -521,7 +519,6 @@ class StarList:
         gc.enable()
         return
 
-    @profile
     def property_asarray(self, name, star_type = 'all'):
 
         if self.N_stars == 0:
@@ -601,7 +598,6 @@ class StarList:
 
     
 
-    @profile
     def species_asarray(self, name, star_type = 'all'):
         """
         Return either the ejecta rates or chemical tags for stars as array
