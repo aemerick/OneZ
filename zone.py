@@ -128,9 +128,16 @@ class Zone:
             else:
                 self.initial_abundances[e] = 0.0
 
-
         for e in self.initial_abundances.iterkeys():
             self.species_masses[e] = self.M_gas * self.initial_abundances[e]
+
+
+        #
+        # One day, set this as list with second list of conditionals
+        # so one can (at runtime) arbitrarily track on any condition
+        #
+        self.special_mass_accumulator = OrderedDict()
+        self.special_mass_accumulator['m_massive'] = 0.0
 
         return None
         
@@ -174,7 +181,7 @@ class Zone:
             #
             # II) Sum up and store number of supernovae
             #
-            self._accumulate_new_sn()
+#            self._accumulate_new_sn() - should now be taken care of in evolve step
 
             #
             # III) Compute SFR and make new stars
@@ -330,8 +337,11 @@ class Zone:
         # to ejecta bins during evolution (winds and SN)
         # to limit number of loops through star list
         #
-        self.all_stars.evolve(self.t, self.dt, ej_masses = self.Mdot_ej_masses,  
-                                               sn_masses = self.SN_ej_masses)
+        self.all_stars.evolve(self.t, self.dt, ej_masses    = self.Mdot_ej_masses,  
+                                               sn_masses    = self.SN_ej_masses,
+                                               snII_counter = self.N_SNII,
+                                               snIa_counter = self.N_SNIa,
+                                               special_accumulator = self.special_mass_accumulator)
 
         self.Mdot_ej = self.Mdot_ej_masses['m_tot'] * config.units.time
      
@@ -626,6 +636,9 @@ class Zone:
         for e in self.abundances.iterkeys():
             self._summary_data[e] = self.abundances[e]
             self._summary_data[e + '_mass'] = self.species_masses[e]
+
+        for key in self.special_mass_accumulator.iterkeys():
+            self._summary_data[key] = self.special_mass_accumulator[key]
 
         return 
 

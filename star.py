@@ -68,7 +68,9 @@ class StarParticle:
                 self.sn_ejecta_masses[e]  = 0.0
 
 
-    def evolve(self, t, dt, ej_masses = {}, sn_masses = {}):
+    def evolve(self, t, dt, ej_masses = {}, sn_masses = {},
+                            snII_counter = 0.0, snIa_counter = 0.0,
+                            special_accumulator={}):
         pass
 
     def _assign_properties(self):
@@ -88,7 +90,9 @@ class Star(StarParticle):
 
         self._assign_properties()
 
-    def evolve(self, t, dt, ej_masses = {}, sn_masses = {}):
+    def evolve(self, t, dt, ej_masses = {}, sn_masses = {},
+                            snII_counter = 0.0, snIa_counter = 0.0,
+                            special_accumulator={}):
         """
         Evolve 
         """
@@ -124,6 +128,7 @@ class Star(StarParticle):
                     self.set_SNII_properties()
                     self.properties['type'] = 'new_remnant'
                     SN_mass_loss = self.sn_ejecta_masses['m_tot']
+                    snII_counter += 1
                 else:
                     #
                     # Otherwise, form a white dwarf when dead and label as
@@ -156,6 +161,7 @@ class Star(StarParticle):
                         self.properties['type'] = 'new_SNIa_remnant'
                         self.set_SNIa_properties()
                         SN_mass_loss = self.sn_ejecta_masses['m_tot']
+                        snIa_counter += 1
 
         #
         # Compute total mass lost through supernova and wind
@@ -188,6 +194,9 @@ class Star(StarParticle):
             for key in ej_masses.iterkeys():
                 ej_masses[key] += self.wind_ejecta_abundances[key] * self.Mdot_ej
 
+            if self.M_o > config.zone.track_massive_star_ejecta_mass:
+                special_accumulator['m_massive'] += self.wind_ejecta_abundances['m_metal'] * self.Mdot_ej
+
         elif self.properties['type'] == 'new_remnant':
             # sn may have both winds and SN ejecta if explosion 
             # happens between timesteps (almost always)
@@ -195,11 +204,19 @@ class Star(StarParticle):
                 ej_masses[key] += self.wind_ejecta_abundances[key] * self.Mdot_ej
                 sn_masses[key] += self.sn_ejecta_masses[key]
 
+            if self.M_o > config.zone.track_massive_star_ejecta_mass:
+                special_accumulator['m_massive'] += self.wind_ejecta_abundances['m_metal']*self.Mdot_ej +\
+                                                    self.sn_ejecta_masses['m_metal']
+
         elif self.properties['type'] == 'new_SNIa_remnant':
 
             for key in sn_masses.iterkeys():
                 sn_masses[key] += self.sn_ejecta_masses[key]
+
+            if self.M_o > config.zone.track_massive_star_ejecta_mass:
+                special_accumulator['m_massive'] += self.sn_ejecta_masses['m_metal']
             
+        
 
 
         return None
