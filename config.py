@@ -161,6 +161,7 @@ class _zone_parameters(_parameters):
         self.initial_stellar_mass     = 0.0
         self.species_to_track         = OrderedDict()
         self.initial_abundances       = None
+        self.track_massive_star_ejecta_mass = 25.0
 
         self.imf                      = imf.salpeter()
         self.M_min                   = self.imf.M_min
