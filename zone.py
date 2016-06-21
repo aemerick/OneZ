@@ -181,7 +181,7 @@ class Zone:
             #
             # II) Sum up and store number of supernovae
             #
-#            self._accumulate_new_sn() - should now be taken care of in evolve step
+            self._accumulate_new_sn()
 
             #
             # III) Compute SFR and make new stars
@@ -339,8 +339,6 @@ class Zone:
         #
         self.all_stars.evolve(self.t, self.dt, ej_masses    = self.Mdot_ej_masses,  
                                                sn_masses    = self.SN_ej_masses,
-                                               snII_counter = self.N_SNII,
-                                               snIa_counter = self.N_SNIa,
                                                special_accumulator = self.special_mass_accumulator)
 
         self.Mdot_ej = self.Mdot_ej_masses['m_tot'] * config.units.time
