@@ -292,6 +292,8 @@ class _star_particle_parameters(_parameters):
         self.use_stellar_winds             = True
         self.use_AGB_wind_phase            = True
         self.AGB_wind_phase_mass_threshold = 8.0
+
+        self.direct_collapse_mass_threshold = 40.0
         
 
         self.normalize_black_body_to_OSTAR = True
