@@ -69,7 +69,7 @@ class StarParticle:
 
 
     def evolve(self, t, dt, ej_masses = {}, sn_masses = {},
-                            snII_counter = 0.0, snIa_counter = 0.0,
+                            snII_counter = -9999, snIa_counter = -9999,
                             special_accumulator={}):
         pass
 
@@ -91,7 +91,7 @@ class Star(StarParticle):
         self._assign_properties()
 
     def evolve(self, t, dt, ej_masses = {}, sn_masses = {},
-                            snII_counter = 0.0, snIa_counter = 0.0,
+                            snII_counter = -9999, snIa_counter = -9999,
                             special_accumulator={}):
         """
         Evolve 
@@ -121,7 +121,8 @@ class Star(StarParticle):
                 SN_mass_loss = 0.0
 
             elif self.properties['type'] == 'star':
-                if self.M_o > config.stars.SNII_mass_threshold :
+                if self.M_o > config.stars.SNII_mass_threshold  and\
+                   self.M_o < config.stars.direct_collapse_mass_threshold:
                     #
                     # Core collapse supernova - change type and compute yields
                     #
@@ -129,7 +130,7 @@ class Star(StarParticle):
                     self.properties['type'] = 'new_remnant'
                     SN_mass_loss = self.sn_ejecta_masses['m_tot']
                     snII_counter += 1
-                else:
+                elif self.M_o < config.stars.SNII_mass_threshold:
                     #
                     # Otherwise, form a white dwarf when dead and label as
                     # candidate for future SNIa
@@ -144,6 +145,11 @@ class Star(StarParticle):
 
                     else:
                         self.properties['SNIa_candidate'] = False
+                else:
+                    #
+                    # direct collapse to black hole - no supernova
+                    #
+                    self.properties['type'] == 'direct_collapse'
 
             # if this is a WD, need to check and see if it will explode            
             if self.properties['type'] == 'WD':
@@ -217,9 +223,8 @@ class Star(StarParticle):
                 special_accumulator['m_massive'] += self.sn_ejecta_masses['m_metal']
             
         
-
-
         return None
+
     def set_SNIa_properties(self):
         # need to rename and combine this and functions below
 
