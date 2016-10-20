@@ -92,7 +92,8 @@ def SNIa_yields( elements , return_dict = False):
         return np.asarray([ yields_dict[x] for x in elements ])
 
 
-def SNIa_probability(t, t_form, lifetime, DTD_slope = 1.0, NSNIa = 0.043):
+def SNIa_probability(t, t_form, lifetime, DTD_slope = 1.0, NSNIa = 0.043,
+                        z = 0.0):
     """
     Delay time distribution model to calculate dP/dt for a given
     white dwarf to explode as a Type Ia supernova as a function of 
@@ -110,7 +111,7 @@ def SNIa_probability(t, t_form, lifetime, DTD_slope = 1.0, NSNIa = 0.043):
         dPdt /= np.log( (const.hubble_time + lifetime) / lifetime )
     else:
         dPdt *= (- DTD_slope + 1.0)
-        dPdt /= ( (hubble_time + lifetime)**(-DTD_slope + 1.0) - (lifetime)**(-DTD_slope+1.0))
+        dPdt /= ( (const.hubble_time + lifetime)**(-DTD_slope + 1.0) - (lifetime)**(-DTD_slope+1.0))
     
     dPdt *= (t - t_form)**(-DTD_slope)
 

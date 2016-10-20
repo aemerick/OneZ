@@ -149,7 +149,7 @@ class Star(StarParticle):
                     #
                     # direct collapse to black hole - no supernova
                     #
-                    self.properties['type'] == 'direct_collapse'
+                    self.properties['type'] = 'direct_collapse'
 
             # if this is a WD, need to check and see if it will explode            
             if self.properties['type'] == 'WD':
@@ -281,7 +281,7 @@ class Star(StarParticle):
         """
         zeroes certain properties after star dies
         """
-        zero_properties = ['E0', 'E1', 'L_FUV', 'Q0', 'Q1',
+        zero_properties = ['E0', 'E1', 'L_FUV', 'L_LW', 'Q0', 'Q1',
                            'luminosity', 'v_wind', 'Mdot_wind']
 
         self.Mdot_ej = 0.0
@@ -306,6 +306,12 @@ class Star(StarParticle):
     def fuv_luminosity(self):
         if self.properties.haskey('FUV_flux'):
             return self.properties['FUV_flux'] * self.surface_area()
+        else:
+            return 0.0
+
+    def LW_luminosity(self):
+        if self.properties.haskey('LW_flux'):
+            return self.properties['LW_flux'] * self.surface_area()
         else:
             return 0.0
 
@@ -387,7 +393,7 @@ class Star(StarParticle):
     def _assign_properties(self):
 
         p_list = ['luminosity', 'radius',
-                  'lifetime'  , 'age_agb', 'L_FUV',
+                  'lifetime'  , 'age_agb', 'L_FUV', 'L_LW',
                   'Q1', 'Q2', 'E_Q1', 'E_Q2']
 
         
@@ -398,22 +404,23 @@ class Star(StarParticle):
         self.properties['lifetime']    = lifetime
         self.properties['age_agb']     = age_agb
 
-        Q0, Q1, FUV = RAD_TABLE.interpolate([self.properties['Teff'],
+        Q0, Q1, FUV, LW = RAD_TABLE.interpolate([self.properties['Teff'],
                                              self.surface_gravity(),
-                                             self.Z], ['q0','q1','FUV_flux'])
+                                             self.Z], ['q0','q1','FUV_flux', 'LW_flux'])
         
         E0  = rad.average_energy(const.E_HI/ const.eV_erg, self.properties['Teff'])
         E1  = rad.average_energy(const.E_HeI/const.eV_erg, self.properties['Teff'])
 
 
         use_blackbody = False
-        for a in [Q0, Q1, FUV]:
+        for a in [Q0, Q1, FUV, LW]:
             if a == 'offgrid':
                 use_blackbody = True
                 break;
 
         if use_blackbody:
             FUV = rad.fuv_flux_blackbody(self.properties['Teff'])
+            LW  = rad.LW_flux_blackbody(self.properties['Teff'])
             Q0  = rad.compute_blackbody_q0(self.properties['Teff'])
             Q1  = rad.compute_blackbody_q1(self.properties['Teff'])
 
@@ -426,6 +433,7 @@ class Star(StarParticle):
                 Q0  *= config.stars.black_body_q0_factors[corr_ind]
                 Q1  *= config.stars.black_body_q1_factors[corr_ind]
                 FUV *= config.stars.black_body_FUV_factors[corr_ind]
+                LW  *= config.stars.black_body_LW_factors[corr_ind]
 
     
         self.properties['Q0']    = Q0 * self.surface_area()
@@ -433,6 +441,7 @@ class Star(StarParticle):
         self.properties['Q1']    = Q1 * self.surface_area()
         self.properties['E1']    = E1
         self.properties['L_FUV'] = FUV * self.surface_area()
+        self.properties['L_LW']  = LW  * self.surface_area()
 
         self.Mdot_ej = 0.0
 
@@ -541,7 +550,7 @@ class StarList:
         gc.enable()
         return
 
-    def property_asarray(self, name, star_type = 'all'):
+    def property_asarray(self, name, star_type = 'all', subset_condition = None):
 
         if self.N_stars == 0:
             return np.zeros(1)
@@ -550,6 +559,10 @@ class StarList:
             _star_subset = self.get_subset( lambda x : x.properties['type'] != star_type )
         else:
             _star_subset = self.stars_iterable
+
+        if not subset_condition == None:
+            for key in subset_condition.keys():
+                _star_subset = self._get_subset( _star_subset, subset_condition[key])
 
         if name == 'mass' or name == 'Mass' or name == 'M':
             array = np.asarray( [x.M for x in _star_subset])
@@ -618,7 +631,8 @@ class StarList:
 
 #        return itertools.ifilterfalse( expr,  self.stars)
 
-    
+    def _get_subset(self, iterable, expr):
+        return [x for x in iterable if expr(x)]
 
     def species_asarray(self, name, star_type = 'all'):
         """

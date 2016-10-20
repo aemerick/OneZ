@@ -316,6 +316,7 @@ class _star_particle_parameters(_parameters):
         self.black_body_q0_factors         = const.black_body_q0
         self.black_body_q1_factors         = const.black_body_q1
         self.black_body_FUV_factors        = const.black_body_fuv
+        self.black_body_LW_factors         = const.black_body_LW
 
 
 stars = _star_particle_parameters()
@@ -332,6 +333,8 @@ class _io_parameters(_parameters):
         self.summary_output_filename  = 'summary_output.txt' 
         self.dt_summary               = 0.0
         self.cycle_summary            = 0
+
+        self.radiation_binned_output  = 0 # bin rad in mass bins - expensive
 
 io  = _io_parameters()
 

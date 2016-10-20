@@ -53,6 +53,24 @@ def fuv_flux_blackbody(T):
 
     return fuv_flux
 
+def LW_flux_blackbody(T):
+    """
+    Computes black body flux over the LW band for a 
+    black body of temperature T
+    """
+
+    # convert to unitless energies
+    x2 = (const.E_HI / const.eV_erg) / (const.k_boltz * T)
+    x1 = (11.2       / const.eV_erg) / (const.k_boltz * T)
+
+    # normalization const
+    A = 2.0 * const.k_boltz**4 * T**4 / (const.h**3 * const.c**2)
+
+    # flux and renorm
+    LW_flux = A * black_body_flux(x1,x2)
+
+    return LW_flux
+
 
 def black_body_flux(x1,x2):
     """ 

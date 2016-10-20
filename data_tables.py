@@ -324,9 +324,9 @@ class RadiationData(DataTable):
         self.x['metallicity']     = np.array([0.0,0.001,0.01,1/50.0,1/30.0,0.1,0.2,0.5,1.0,2.0])
 
         # now, read in each of the data sets
-        self.y['q0'] = None; self.y['q1'] = None; self.y['FUV_flux'] = None
+        self.y['q0'] = None; self.y['q1'] = None; self.y['FUV_flux'] = None; self.y['LW_flux'] = None
         self._data_file_names = {'q0' : 'q0_rates.in' , 'q1' : 'q1_rates.in' , 
-                                 'FUV_flux' : 'FUV_rates.in'}
+                                 'FUV_flux' : 'FUV_rates.in', 'LW_flux' : 'LW_rates.in'}
 
         # make the data arrays and shape to the correct dimensions and size
         for yi in self.y:
@@ -352,7 +352,7 @@ class RadiationData(DataTable):
                 for k in np.arange(np.size(line)):
 
                     # need to get rid of this if statement by unifying file format
-                    if name == 'FUV_flux':
+                    if name == 'FUV_flux' or name == 'LW_flux':
                         self.y[name][i][j][k] = line[k]
                     else:
                         self.y[name][i][j][np.size(line) - k - 1] = line[k]
@@ -367,7 +367,8 @@ class RadiationData(DataTable):
             self.y[name] = 10.0**(self.y[name])
 
         # flag FUV values that are off of the grid  
-        self.y['FUV_flux'][ self.y['FUV_flux'] < 0.0] = -1
+        self.y['FUV_flux'][ self.y['FUV_flux'] <= 0.0] = -1
+        self.y['LW_flux' ][ self.y['LW_flux']  <= 0.0] = -1
 
         return None
 
@@ -391,7 +392,8 @@ class RadiationData(DataTable):
                 return_list[count] =  DataTable.interpolate(self, vals, yname, silence = silence,
                                             flag = 'offgrid', special_flag = 'offgrid',
                                             special_errval = 0.0)
-            elif yname == 'FUV_flux':
+
+            elif yname == 'FUV_flux' or yname == 'LW_flux':
     
                 return_list[count] =  DataTable.interpolate(self, vals, yname, silence = silence,
                                             flag = 'offgrid', special_flag = 'offgrid',
