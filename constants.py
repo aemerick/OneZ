@@ -137,7 +137,7 @@ class constants:
         self.kpc     = 1.0E3 * self.pc
         self.Mpc     = 1.0E3 * self.kpc
 
-        self.solar_abundace = _set_abundance_dictionary()
+        self.solar_abundance = _set_abundance_dictionary()
         self.molecular_weight = _set_molecular_weight_dictionary()
         self.amu = 1.66054E-24 # amu to g
 
