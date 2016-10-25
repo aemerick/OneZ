@@ -125,10 +125,10 @@ class constants:
 
         self.Zsolar_s99    = 0.02 # starburst 99 
 
-        self.black_body_q0  = [2.89,  0.1]
-        self.black_body_q1  = [5.20, 0.01]
-        self.black_body_fuv = [1.0E-4, 1.0/4.35E4]
-        self.black_body_LW  = [1.0E-4, 1.0/4.35E4]
+        self.black_body_q0  = [0.1,  3.2]
+        self.black_body_q1  = [0.001, 4.0]
+        self.black_body_fuv = [1.0E-4, 2.3E-5]
+        self.black_body_LW  = [5.0E-5, 5.0E-6]
       
         self.yr_to_s = 3.16224E7
 
