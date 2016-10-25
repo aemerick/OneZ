@@ -30,7 +30,7 @@ WIND_YIELD_TABLE = DT.StellarYieldsTable('wind')
 
 class StarParticle:
 
-    def __init__(self, M, Z, abundances=None, tform=0.0, id = 0):
+    def __init__(self, M, Z, abundances={'m_tot':1.0}, tform=0.0, id = 0):
         """
         Initialize star particle with mass and metallicity. Particle
         properties are assigned using input M and Z to interpolate
@@ -267,6 +267,8 @@ class Star(StarParticle):
         else:
             raise NotImplementedError
 
+
+
     @property
     def mechanical_luminosity(self):
         return self.properties['Mdot_wind'] * const.Msun * self.properties['v_wind']**2
@@ -466,6 +468,21 @@ class Star(StarParticle):
 
         self.properties['Mdot_wind'] = 0.0
         self.properties['v_wind']    = 0.0
+
+    def wind_ejecta_masses(self):
+
+        mass = OrderedDict()
+
+        for k in self.wind_ejecta_abundances.keys():
+            mass[k] = self.wind_ejecta_abundances[k] * self.properties['M_wind_total']
+
+        return mass
+
+    def return_sn_ejecta_masses(self):
+
+        self.set_SNII_properties()
+
+        return self.sn_ejecta_masses
 
 class StarList:
     """
