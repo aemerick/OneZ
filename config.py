@@ -2,11 +2,11 @@ __author__ = "aemerick <emerick@astro.columbia.edu>"
 
 # --- external ---
 from collections import OrderedDict
+import numpy as np
 
 # --- internal ---
 from constants import CONST as const
 import imf as imf
-
 
 #
 # --------- Superclass for all parameters -------
