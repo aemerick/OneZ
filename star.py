@@ -141,27 +141,28 @@ class Star(StarParticle):
                            and self.M_o < config.stars.SNIa_candidate_mass_bounds[1]:
 
                         self.properties['SNIa_candidate'] = True
-                        self.properties['PSNIa']          = 0.0 # initialize prob of going SNIa
+                        self.properties['WD_lifetime']    = phys.WD_lifetime(t*config.units.time,
+                                                                             self.tform,
+                                                                             self.properties['lifetime'],
+                                                                             config.stars.DTD_slope,
+                                                                             config.stars.NSNIa,
+                                                                             config.zone.current_redshift)
 
                     else:
                         self.properties['SNIa_candidate'] = False
+
                 else:
                     #
                     # direct collapse to black hole - no supernova
                     #
-                    self.properties['type'] = 'direct_collapse'
+                    self.properties['type'] = 'new_direct_collapse'
 
             # if this is a WD, need to check and see if it will explode            
             if self.properties['type'] == 'WD':
-                if self.properties['SNIa_candidate']:
-                    self.properties['PSNIa'] = phys.SNIa_probability(t * config.units.time,
-                                                                     self.tform,
-                                                                     self.properties['lifetime'],
-                                                                     DTD_slope = config.stars.DTD_slope,
-                                                                     NSNIa = config.stars.NSNIa)
-                    self.properties['PSNIa'] *= dt * config.units.time
 
-                    if self.properties['PSNIa'] > np.random.rand():
+                if self.properties['SNIa_candidate']:
+
+                    if self.properties['WD_lifetime'] >= t*config.units.time:
 
                         # go Type Ia supernova
                         self.properties['type'] = 'new_SNIa_remnant'
@@ -177,7 +178,7 @@ class Star(StarParticle):
         self.M = self.M - M_loss
 
         if self.M < 0.0 and not 'SNIa' in self.properties['type']:
-            print "ERROR IN STAR: Negative stellar mass"
+            print "ERROR IN STAR: Negative stellar mass in particle type ", self.properties['type']
             print "birth mass, mass, mdot_ej, mdot_ej*dt, sn_mass_loss, M_loss, age"
             print self.M_o, self.M, self.Mdot_ej, self.Mdot_ej*dt, SN_mass_loss, M_loss, age
             print self.properties
