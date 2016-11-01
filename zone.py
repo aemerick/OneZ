@@ -26,6 +26,17 @@ import config as config
 from constants import CONST as const
 
 
+def restart(filename):
+    """
+    Restart evolution from chosen picked output file
+    """
+
+    zone = pickle.load( open(filename, 'r'))
+
+    zone.evolve()
+
+    return
+
 
 class Zone:
     """
