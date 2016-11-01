@@ -43,7 +43,7 @@ def SNIa_yields( elements , return_dict = False):
     a single string or list of strings, where strings are atomic symbols
     """
 
-    # dict of SNIa values
+    # dict of wSNIa values
     
     yields_dict ={'m_tot'   : 1.2447714757,
                   'm_metal' : 1.2447714757,
@@ -110,12 +110,13 @@ def SNIa_probability(t, t_form, lifetime, DTD_slope = 1.0, NSNIa = 0.043,
     dPdt = NSNIa
 
     if (DTD_slope == 1.0):
-        dPdt /= np.log( (config.units.hubble_time(z) + lifetime) / lifetime )
+        dPdt /= np.log( (config.units.hubble_time(z) + t_form) / (t_form + lifetime ))
     else:
         dPdt *= (- DTD_slope + 1.0)
-        dPdt /= ( (config.units.hubble_time(z) + lifetime)**(-DTD_slope + 1.0) - (lifetime)**(-DTD_slope+1.0))
+        dPdt /= ( (config.units.hubble_time(z) + t_form)**(-DTD_slope + 1.0) -\
+                  (t_form + lifetime)**(-DTD_slope+1.0))
     
-    dPdt *= (t - t_form)**(-DTD_slope)
+    dPdt *= (t)**(-DTD_slope)
 
     return dPdt
 

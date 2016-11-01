@@ -141,12 +141,12 @@ class Star(StarParticle):
                            and self.M_o < config.stars.SNIa_candidate_mass_bounds[1]:
 
                         self.properties['SNIa_candidate'] = True
-                        self.properties['WD_lifetime']    = phys.WD_lifetime(t*config.units.time,
+                        self.properties['WD_lifetime']    = phys.WD_lifetime(t,
                                                                              self.tform,
-                                                                             self.properties['lifetime'],
+                                                                             self.properties['lifetime']/config.units.time,
                                                                              config.stars.DTD_slope,
                                                                              config.stars.NSNIa,
-                                                                             config.zone.current_redshift)
+                                                                             config.zone.current_redshift) * config.units.time
 
                     else:
                         self.properties['SNIa_candidate'] = False
