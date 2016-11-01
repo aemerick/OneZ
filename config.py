@@ -307,8 +307,9 @@ class _star_particle_parameters(_parameters):
         self.use_stellar_winds             = True
         self.use_AGB_wind_phase            = True
         self.AGB_wind_phase_mass_threshold = 8.0
+        self.AGB_wind_velocity             = 20.0      # km / s
 
-        self.direct_collapse_mass_threshold = 40.0
+        self.direct_collapse_mass_threshold = 25.0     # top of NuGrid data set
         
 
         self.normalize_black_body_to_OSTAR = True

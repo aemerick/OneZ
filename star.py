@@ -368,8 +368,11 @@ class Star(StarParticle):
                                       self.properties['Teff'], self.Z)
 
 
-        vwind = phys.s99_wind_velocity( self.properties['luminosity'], self.M_o,
-                                        self.properties['Teff'], self.Z)
+        if (self.M > config.stars.AGB_wind_phase_mass_threshold):
+            vwind = phys.s99_wind_velocity( self.properties['luminosity'], self.M_o,
+                                            self.properties['Teff'], self.Z)
+        else:
+            vwind = config.stars.AGB_wind_velocity * 1.0E5 # km/s -> cm/s
 
 
         self.properties['Mdot_wind'] = Mdot
