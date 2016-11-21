@@ -82,11 +82,11 @@ class StarParticle:
 
 class Star(StarParticle):
         
-    def __init__(self, *args, **kwargs):
+    def __init__(self, star_type = 'star', *args, **kwargs):
 
         StarParticle.__init__(self, *args, **kwargs)
 
-        self.properties['type'] = 'star'
+        self.properties['type'] = star_type
 
         self._assign_properties()
 
@@ -409,6 +409,8 @@ class Star(StarParticle):
         self.properties['R']           = R
         self.properties['lifetime']    = lifetime
         self.properties['age_agb']     = age_agb
+        self.properties['agb_phase_length']  = lifetime - age_agb	
+
 
         Q0, Q1, FUV, LW = RAD_TABLE.interpolate([self.properties['Teff'],
                                              self.surface_gravity(),
@@ -494,18 +496,24 @@ class StarList:
     on many stars at once.
     """
 
-    def __init__(self):
+    def __init__(self, stars = None):
 
-        if config.zone.maximum_stars != None and config.zone.optimize:
-            self._stars           = [None] * config.zone.maximum_stars
-            self._stars_optimized = True
+
+        if stars is None:
+            if config.zone.maximum_stars != None and config.zone.optimize:
+                self._stars           = [None] * config.zone.maximum_stars
+                self._stars_optimized = True
+            else:
+                self._stars           = []
+                self._stars_optimized = False
+
+
+            self._are_there_new_stars = False
+            self._N_stars             = 0
         else:
-            self._stars           = []
-            self._stars_optimized = False
-
-
-        self._are_there_new_stars = False
-        self._N_stars             = 0
+            self._stars = stars
+            self._N_stars = len(self._stars)
+            self._are_there_new_stars = True
 
         return
 
