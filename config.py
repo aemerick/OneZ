@@ -2,11 +2,11 @@ __author__ = "aemerick <emerick@astro.columbia.edu>"
 
 # --- external ---
 from collections import OrderedDict
+import numpy as np
 
 # --- internal ---
 from constants import CONST as const
 import imf as imf
-
 
 #
 # --------- Superclass for all parameters -------
@@ -59,16 +59,30 @@ class _units(_parameters):
         self.time      = const.yr_to_s * 1.0E6
         self.mass      = 1.0
 
+        self.omega_b = 0.0463
+        self.omega_c = 0.2330
+        self.omega_v = 0.7210
+        self.omega_r = 1.0E-4
 
-        self.omega_matter = 0.258 # WMAP 5 year
-        self.omega_lambda = 0.742 # WMAP 5 year
+        self.omega_m = self.omega_c + self.omega_b
+        self.omega   = self.omega_m + self.omega_v + self.omega_r
+
+#        self.omega_matter = 0.258 # WMAP 5 year
+#        self.omega_lambda = 0.742 # WMAP 5 year
         self.H_o          = 69.32 # km / s / Mpc
 
-        return
+        
 
-    @property
-    def hubble_time(self):
-        return (1.0 / (self.H_o * (const.km) / (const.Mpc))) / (self.time)
+        return
+    
+    def H_a(self, a):
+        H = self.H_o * np.sqrt((self.omega_v + self.omega_m*a**(-3) +\
+                            self.omega_r*a**(-4) - (self.omega-1.0)*a**(-2)))
+        return H
+        
+    def hubble_time(self, z):
+        a = 1.0 / (1.0 + z)
+        return (1.0 / (self.H_a(a) * (const.km) / (const.Mpc))) / (self.time)
 
 units = _units()
 #
@@ -173,8 +187,9 @@ class _zone_parameters(_parameters):
         self.constant_SFR             = 10.0        # code mass / code time
 
         self.cosmological_evolution   = False       # on or off
-        self.initial_redshift         = 10000       #
+        self.initial_redshift         = 0.0       #
         self.final_redshift           = 0.0
+        self.current_redshift         = self.initial_redshift
 
         self.use_SF_mass_reservoir     = False
         self.SF_mass_reservoir_size    = 1000.0
@@ -292,8 +307,9 @@ class _star_particle_parameters(_parameters):
         self.use_stellar_winds             = True
         self.use_AGB_wind_phase            = True
         self.AGB_wind_phase_mass_threshold = 8.0
+        self.AGB_wind_velocity             = 20.0      # km / s
 
-        self.direct_collapse_mass_threshold = 40.0
+        self.direct_collapse_mass_threshold = 25.0     # top of NuGrid data set
         
 
         self.normalize_black_body_to_OSTAR = True
@@ -301,6 +317,7 @@ class _star_particle_parameters(_parameters):
         self.black_body_q0_factors         = const.black_body_q0
         self.black_body_q1_factors         = const.black_body_q1
         self.black_body_FUV_factors        = const.black_body_fuv
+        self.black_body_LW_factors         = const.black_body_LW
 
 
 stars = _star_particle_parameters()
@@ -317,6 +334,8 @@ class _io_parameters(_parameters):
         self.summary_output_filename  = 'summary_output.txt' 
         self.dt_summary               = 0.0
         self.cycle_summary            = 0
+
+        self.radiation_binned_output  = 0 # bin rad in mass bins - expensive
 
 io  = _io_parameters()
 

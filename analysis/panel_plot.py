@@ -1,9 +1,11 @@
 import matplotlib.pyplot as plt
+from astropy import units as u
+from onezone.analysis import analysis_tools
 import numpy as np
 #
 #
 def panel_plot(xname, yname, data, dim = [0,0], logscale = True,
-                xlabel = '-', ylabel = '-', *args, **kwargs):
+                xlabel = '-', ylabel = '-', normalize = False, *args, **kwargs):
 
     if isinstance(xname, basestring) and isinstance(yname, basestring):
         xname  = [xname]
@@ -45,7 +47,12 @@ def panel_plot(xname, yname, data, dim = [0,0], logscale = True,
 
         if '/' in x:
             xsplit = x.split('/')
-            xdata = np.log10( data[xsplit[0]] / data[xsplit[1]] )
+            if normalize:
+                xdata = analysis_tools.normalize_abundance_ratio( (xsplit[0], data[xsplit[0]] * u.Msun),
+                                                   (xsplit[1], data[xsplit[1]] * u.Msun),
+                                                   input_type = 'mass' )
+            else:
+                xdata = np.log10( data[xsplit[0]] / data[xsplit[1]] )
 
             if logscale:
                 logscale = 'y'
@@ -54,7 +61,13 @@ def panel_plot(xname, yname, data, dim = [0,0], logscale = True,
 
         if '/' in y:
             ysplit = y.split('/')
-            ydata = np.log10( data[ysplit[0]] / data[ysplit[1]] )
+            if normalize:
+                ydata = analysis_tools.normalize_abundance_ratio( (ysplit[0], data[ysplit[0]] * u.Msun),
+                                                   (ysplit[1], data[ysplit[1]] * u.Msun),  
+                                                   input_type = 'mass' )
+
+            else:
+                ydata = np.log10( data[ysplit[0]] / data[ysplit[1]] )
 
             if logscale == 'y':
                 logscale = False
@@ -62,10 +75,15 @@ def panel_plot(xname, yname, data, dim = [0,0], logscale = True,
             ydata = data[y]
         
 
-        a.plot( xdata, ydata, **kwargs)
+        if '/' in y:
+            a.plot( xdata, ydata, label = ylabel[i], **kwargs)
+            a.set_ylabel(r'log X/' + ysplit[1])
+            a.legend(loc='best', frameon=False)
+        else:
+            a.plot( xdata, ydata, **kwargs)
+            a.set_ylabel(ylabel[i])
 
         a.set_xlabel(xlabel[i])
-        a.set_ylabel(ylabel[i])
 
         if logscale == 'x':
             a.semilogx()

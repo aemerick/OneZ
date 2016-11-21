@@ -5,6 +5,8 @@ import numpy as np
 
 # --- internal ---
 from constants import CONST as const
+import config      as config
+
 
 # helper functions for computing physics models
 
@@ -41,7 +43,7 @@ def SNIa_yields( elements , return_dict = False):
     a single string or list of strings, where strings are atomic symbols
     """
 
-    # dict of SNIa values
+    # dict of wSNIa values
     
     yields_dict ={'m_tot'   : 1.2447714757,
                   'm_metal' : 1.2447714757,
@@ -92,7 +94,8 @@ def SNIa_yields( elements , return_dict = False):
         return np.asarray([ yields_dict[x] for x in elements ])
 
 
-def SNIa_probability(t, t_form, lifetime, DTD_slope = 1.0, NSNIa = 0.043):
+def SNIa_probability(t, t_form, lifetime, DTD_slope = 1.0, NSNIa = 0.043,
+                        z = 0.0):
     """
     Delay time distribution model to calculate dP/dt for a given
     white dwarf to explode as a Type Ia supernova as a function of 
@@ -107,14 +110,65 @@ def SNIa_probability(t, t_form, lifetime, DTD_slope = 1.0, NSNIa = 0.043):
     dPdt = NSNIa
 
     if (DTD_slope == 1.0):
-        dPdt /= np.log( (const.hubble_time + lifetime) / lifetime )
+        dPdt /= np.log( (config.units.hubble_time(z) + t_form) / (t_form + lifetime ))
     else:
         dPdt *= (- DTD_slope + 1.0)
-        dPdt /= ( (hubble_time + lifetime)**(-DTD_slope + 1.0) - (lifetime)**(-DTD_slope+1.0))
+        dPdt /= ( (config.units.hubble_time(z) + t_form)**(-DTD_slope + 1.0) -\
+                  (t_form + lifetime)**(-DTD_slope+1.0))
     
-    dPdt *= (t - t_form)**(-DTD_slope)
+    dPdt *= (t)**(-DTD_slope)
 
     return dPdt
+
+def WD_lifetime(t, t_form, lifetime, DTD_slope = 1.0, NSNIa = 0.043, z = 0):
+    """
+    Delay time distribution model to c.alculate the exact time at which a given WD
+    will explode as a Type Ia supernova. Time is given as its lifetime,
+    t_explosion = lifetime + t_form, which will essentially be the lifetime of the
+    progenitor MS star (an input) plus the time it will spend as a WD. t_explosion
+    equals infinity if the star never explodes (as will happen ~90-95% of the time).
+    """
+
+    # set tabulated properties:
+    npoints  = 1000
+    min_time = np.log10(lifetime / 10.0)
+    max_time = np.log10(config.units.hubble_time(z))
+    dt       = (max_time - min_time) / (1.0 * (npoints - 1))
+
+    time = 10.0**(min_time + dt * np.arange(npoints))
+
+    # tabulate the probability using the SNIa_probability function
+    tabulated_probability    = np.zeros(npoints)
+    tabulated_probability[0] = SNIa_probability(time[0] + t_form + lifetime,
+                                                t_form, lifetime, DTD_slope, NSNIa, z)
+
+    tabulated  = SNIa_probability(time + t_form + lifetime, t_form, lifetime, DTD_slope, NSNIa, z)
+
+    f_a = tabulated[:-1]
+    f_b = tabulated[1:]
+    f_ab = SNIa_probability( 0.5*(time[1:] + time[:-1]) + t_form + lifetime,
+                             t_form, lifetime, DTD_slope, NSNIa, z )
+
+
+    tabulated_probability[1:] = (1.0/6.0) * (time[1:] - time[0:-1])*(f_a + 4.0*f_ab + f_b)
+    tabulated_probability     = np.cumsum(tabulated_probability)
+
+    rnum = np.random.random()
+
+    if ( rnum < tabulated_probability[0] ):
+        # very highly unlikely, explode right away
+        # print warning since this is so unlikely
+        print "WARNING: Type Ia going off immediately after star's death"
+        WD_lifetime = time[0]
+    elif (rnum > tabulated_probability[-1]):
+        # never explode
+        WD_lifetime = 1000.0 * config.units.hubble_time(z)
+
+    else:
+
+        WD_lifetime = time[ np.abs(tabulated_probability - rnum).argmin() ]
+
+    return WD_lifetime
 
 def white_dwarf_mass(M):
     """

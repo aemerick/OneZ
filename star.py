@@ -30,7 +30,7 @@ WIND_YIELD_TABLE = DT.StellarYieldsTable('wind')
 
 class StarParticle:
 
-    def __init__(self, M, Z, abundances=None, tform=0.0, id = 0):
+    def __init__(self, M, Z, abundances={'m_tot':1.0}, tform=0.0, id = 0):
         """
         Initialize star particle with mass and metallicity. Particle
         properties are assigned using input M and Z to interpolate
@@ -82,11 +82,11 @@ class StarParticle:
 
 class Star(StarParticle):
         
-    def __init__(self, *args, **kwargs):
+    def __init__(self, star_type = 'star', *args, **kwargs):
 
         StarParticle.__init__(self, *args, **kwargs)
 
-        self.properties['type'] = 'star'
+        self.properties['type'] = star_type
 
         self._assign_properties()
 
@@ -141,27 +141,28 @@ class Star(StarParticle):
                            and self.M_o < config.stars.SNIa_candidate_mass_bounds[1]:
 
                         self.properties['SNIa_candidate'] = True
-                        self.properties['PSNIa']          = 0.0 # initialize prob of going SNIa
+                        self.properties['WD_lifetime']    = phys.WD_lifetime(t,
+                                                                             self.tform,
+                                                                             self.properties['lifetime']/config.units.time,
+                                                                             config.stars.DTD_slope,
+                                                                             config.stars.NSNIa,
+                                                                             config.zone.current_redshift) * config.units.time
 
                     else:
                         self.properties['SNIa_candidate'] = False
+
                 else:
                     #
                     # direct collapse to black hole - no supernova
                     #
-                    self.properties['type'] == 'direct_collapse'
+                    self.properties['type'] = 'new_direct_collapse'
 
             # if this is a WD, need to check and see if it will explode            
             if self.properties['type'] == 'WD':
-                if self.properties['SNIa_candidate']:
-                    self.properties['PSNIa'] = phys.SNIa_probability(t * config.units.time,
-                                                                     self.tform,
-                                                                     self.properties['lifetime'],
-                                                                     DTD_slope = config.stars.DTD_slope,
-                                                                     NSNIa = config.stars.NSNIa)
-                    self.properties['PSNIa'] *= dt * config.units.time
 
-                    if self.properties['PSNIa'] > np.random.rand():
+                if self.properties['SNIa_candidate']:
+
+                    if self.properties['WD_lifetime'] >= t*config.units.time:
 
                         # go Type Ia supernova
                         self.properties['type'] = 'new_SNIa_remnant'
@@ -177,7 +178,7 @@ class Star(StarParticle):
         self.M = self.M - M_loss
 
         if self.M < 0.0 and not 'SNIa' in self.properties['type']:
-            print "ERROR IN STAR: Negative stellar mass"
+            print "ERROR IN STAR: Negative stellar mass in particle type ", self.properties['type']
             print "birth mass, mass, mdot_ej, mdot_ej*dt, sn_mass_loss, M_loss, age"
             print self.M_o, self.M, self.Mdot_ej, self.Mdot_ej*dt, SN_mass_loss, M_loss, age
             print self.properties
@@ -267,6 +268,8 @@ class Star(StarParticle):
         else:
             raise NotImplementedError
 
+
+
     @property
     def mechanical_luminosity(self):
         return self.properties['Mdot_wind'] * const.Msun * self.properties['v_wind']**2
@@ -281,7 +284,7 @@ class Star(StarParticle):
         """
         zeroes certain properties after star dies
         """
-        zero_properties = ['E0', 'E1', 'L_FUV', 'Q0', 'Q1',
+        zero_properties = ['E0', 'E1', 'L_FUV', 'L_LW', 'Q0', 'Q1',
                            'luminosity', 'v_wind', 'Mdot_wind']
 
         self.Mdot_ej = 0.0
@@ -306,6 +309,12 @@ class Star(StarParticle):
     def fuv_luminosity(self):
         if self.properties.haskey('FUV_flux'):
             return self.properties['FUV_flux'] * self.surface_area()
+        else:
+            return 0.0
+
+    def LW_luminosity(self):
+        if self.properties.haskey('LW_flux'):
+            return self.properties['LW_flux'] * self.surface_area()
         else:
             return 0.0
 
@@ -359,8 +368,11 @@ class Star(StarParticle):
                                       self.properties['Teff'], self.Z)
 
 
-        vwind = phys.s99_wind_velocity( self.properties['luminosity'], self.M_o,
-                                        self.properties['Teff'], self.Z)
+        if (self.M > config.stars.AGB_wind_phase_mass_threshold):
+            vwind = phys.s99_wind_velocity( self.properties['luminosity'], self.M_o,
+                                            self.properties['Teff'], self.Z)
+        else:
+            vwind = config.stars.AGB_wind_velocity * 1.0E5 # km/s -> cm/s
 
 
         self.properties['Mdot_wind'] = Mdot
@@ -387,7 +399,7 @@ class Star(StarParticle):
     def _assign_properties(self):
 
         p_list = ['luminosity', 'radius',
-                  'lifetime'  , 'age_agb', 'L_FUV',
+                  'lifetime'  , 'age_agb', 'L_FUV', 'L_LW',
                   'Q1', 'Q2', 'E_Q1', 'E_Q2']
 
         
@@ -397,23 +409,26 @@ class Star(StarParticle):
         self.properties['R']           = R
         self.properties['lifetime']    = lifetime
         self.properties['age_agb']     = age_agb
+        self.properties['agb_phase_length']  = lifetime - age_agb	
 
-        Q0, Q1, FUV = RAD_TABLE.interpolate([self.properties['Teff'],
+
+        Q0, Q1, FUV, LW = RAD_TABLE.interpolate([self.properties['Teff'],
                                              self.surface_gravity(),
-                                             self.Z], ['q0','q1','FUV_flux'])
+                                             self.Z], ['q0','q1','FUV_flux', 'LW_flux'])
         
         E0  = rad.average_energy(const.E_HI/ const.eV_erg, self.properties['Teff'])
         E1  = rad.average_energy(const.E_HeI/const.eV_erg, self.properties['Teff'])
 
 
         use_blackbody = False
-        for a in [Q0, Q1, FUV]:
+        for a in [Q0, Q1, FUV, LW]:
             if a == 'offgrid':
                 use_blackbody = True
                 break;
 
         if use_blackbody:
             FUV = rad.fuv_flux_blackbody(self.properties['Teff'])
+            LW  = rad.LW_flux_blackbody(self.properties['Teff'])
             Q0  = rad.compute_blackbody_q0(self.properties['Teff'])
             Q1  = rad.compute_blackbody_q1(self.properties['Teff'])
 
@@ -426,6 +441,7 @@ class Star(StarParticle):
                 Q0  *= config.stars.black_body_q0_factors[corr_ind]
                 Q1  *= config.stars.black_body_q1_factors[corr_ind]
                 FUV *= config.stars.black_body_FUV_factors[corr_ind]
+                LW  *= config.stars.black_body_LW_factors[corr_ind]
 
     
         self.properties['Q0']    = Q0 * self.surface_area()
@@ -433,6 +449,7 @@ class Star(StarParticle):
         self.properties['Q1']    = Q1 * self.surface_area()
         self.properties['E1']    = E1
         self.properties['L_FUV'] = FUV * self.surface_area()
+        self.properties['L_LW']  = LW  * self.surface_area()
 
         self.Mdot_ej = 0.0
 
@@ -458,24 +475,45 @@ class Star(StarParticle):
         self.properties['Mdot_wind'] = 0.0
         self.properties['v_wind']    = 0.0
 
+    def wind_ejecta_masses(self):
+
+        mass = OrderedDict()
+
+        for k in self.wind_ejecta_abundances.keys():
+            mass[k] = self.wind_ejecta_abundances[k] * self.properties['M_wind_total']
+
+        return mass
+
+    def return_sn_ejecta_masses(self):
+
+        self.set_SNII_properties()
+
+        return self.sn_ejecta_masses
+
 class StarList:
     """
     List of star objects with useful functions to handle operating
     on many stars at once.
     """
 
-    def __init__(self):
+    def __init__(self, stars = None):
 
-        if config.zone.maximum_stars != None and config.zone.optimize:
-            self._stars           = [None] * config.zone.maximum_stars
-            self._stars_optimized = True
+
+        if stars is None:
+            if config.zone.maximum_stars != None and config.zone.optimize:
+                self._stars           = [None] * config.zone.maximum_stars
+                self._stars_optimized = True
+            else:
+                self._stars           = []
+                self._stars_optimized = False
+
+
+            self._are_there_new_stars = False
+            self._N_stars             = 0
         else:
-            self._stars           = []
-            self._stars_optimized = False
-
-
-        self._are_there_new_stars = False
-        self._N_stars             = 0
+            self._stars = stars
+            self._N_stars = len(self._stars)
+            self._are_there_new_stars = True
 
         return
 
@@ -541,7 +579,7 @@ class StarList:
         gc.enable()
         return
 
-    def property_asarray(self, name, star_type = 'all'):
+    def property_asarray(self, name, star_type = 'all', subset_condition = None):
 
         if self.N_stars == 0:
             return np.zeros(1)
@@ -550,6 +588,10 @@ class StarList:
             _star_subset = self.get_subset( lambda x : x.properties['type'] != star_type )
         else:
             _star_subset = self.stars_iterable
+
+        if not subset_condition == None:
+            for key in subset_condition.keys():
+                _star_subset = self._get_subset( _star_subset, subset_condition[key])
 
         if name == 'mass' or name == 'Mass' or name == 'M':
             array = np.asarray( [x.M for x in _star_subset])
@@ -618,7 +660,8 @@ class StarList:
 
 #        return itertools.ifilterfalse( expr,  self.stars)
 
-    
+    def _get_subset(self, iterable, expr):
+        return [x for x in iterable if expr(x)]
 
     def species_asarray(self, name, star_type = 'all'):
         """

@@ -26,6 +26,17 @@ import config as config
 from constants import CONST as const
 
 
+def restart(filename):
+    """
+    Restart evolution from chosen picked output file
+    """
+
+    zone = pickle.load( open(filename, 'r'))
+
+    zone.evolve()
+
+    return
+
 
 class Zone:
     """
@@ -619,7 +630,7 @@ class Zone:
         self._summary_data['N_SNIa']  = self.N_SNIa
         self._summary_data['N_SNII']  = self.N_SNII
 
-        sum_names = ['Mdot_ej', 'L_FUV', 'Q0', 'Q1']
+        sum_names = ['Mdot_ej', 'L_FUV', 'L_LW', 'Q0', 'Q1']
         for n in sum_names:
             self._summary_data[n] = np.sum(self.all_stars.property_asarray(n))
 
@@ -637,6 +648,58 @@ class Zone:
 
         for key in self.special_mass_accumulator.iterkeys():
             self._summary_data[key] = self.special_mass_accumulator[key]
+
+        if config.io.radiation_binned_output:
+            condition_1 = {'mass': lambda x : (x.M >= 1.0)  * (x.M < 8.0) *  (x.properties['type'] == 'star')} 
+            condition_2 = {'mass': lambda x : (x.M >= 8.0)  * (x.M < 16.0) * (x.properties['type'] == 'star')}
+            condition_3 = {'mass': lambda x : (x.M >= 16.0) * (x.M < 24.0) * (x.properties['type'] == 'star')}
+            condition_4 = {'mass': lambda x : (x.M >= 24.0) * (x.M < 1000.0) * (x.properties['type'] == 'star')}
+
+            self._summary_data['low_mass_LQ0']   = np.sum(self.all_stars.property_asarray('Q0', subset_condition = condition_1) *\
+                                                          self.all_stars.property_asarray('E0', subset_condition = condition_1))
+            self._summary_data['int_mass_LQ0']   = np.sum(self.all_stars.property_asarray('Q0', subset_condition = condition_2) *\
+                                                          self.all_stars.property_asarray('E0', subset_condition = condition_2))
+            self._summary_data['high_mass_LQ0']  = np.sum(self.all_stars.property_asarray('Q0', subset_condition = condition_3) *\
+                                                          self.all_stars.property_asarray('E0', subset_condition = condition_3))
+            self._summary_data['vhigh_mass_LQ0'] = np.sum(self.all_stars.property_asarray('Q0', subset_condition = condition_4) *\
+                                                          self.all_stars.property_asarray('E0', subset_condition = condition_4))
+
+            self._summary_data['low_mass_LQ1']   = np.sum(self.all_stars.property_asarray('Q1', subset_condition = condition_1) *\
+                                                          self.all_stars.property_asarray('E1', subset_condition = condition_1))
+            self._summary_data['int_mass_LQ1']   = np.sum(self.all_stars.property_asarray('Q1', subset_condition = condition_2) *\
+                                                          self.all_stars.property_asarray('E1', subset_condition = condition_2))
+            self._summary_data['high_mass_LQ1']  = np.sum(self.all_stars.property_asarray('Q1', subset_condition = condition_3) *\
+                                                          self.all_stars.property_asarray('E1', subset_condition = condition_3))
+            self._summary_data['vhigh_mass_LQ1'] = np.sum(self.all_stars.property_asarray('Q1', subset_condition = condition_4) *\
+                                                          self.all_stars.property_asarray('E1', subset_condition = condition_4))
+
+            FUV_1 = self.all_stars.property_asarray('L_FUV', subset_condition = condition_1)
+            FUV_2 = self.all_stars.property_asarray('L_FUV', subset_condition = condition_2)
+            FUV_3 = self.all_stars.property_asarray('L_FUV', subset_condition = condition_3)
+            FUV_4 = self.all_stars.property_asarray('L_FUV', subset_condition = condition_4)
+
+            self._summary_data['low_mass_LFUV']   = np.sum(FUV_1)
+            self._summary_data['int_mass_LFUV']   = np.sum(FUV_2)
+            self._summary_data['high_mass_LFUV']  = np.sum(FUV_3)
+            self._summary_data['vhigh_mass_LFUV'] = np.sum(FUV_4)
+
+            LW_1 = self.all_stars.property_asarray('L_LW', subset_condition = condition_1)
+            LW_2 = self.all_stars.property_asarray('L_LW', subset_condition = condition_2)
+            LW_3 = self.all_stars.property_asarray('L_LW', subset_condition = condition_3)
+            LW_4 = self.all_stars.property_asarray('L_LW', subset_condition = condition_4)
+
+            self._summary_data['low_mass_LLW']   = np.sum(LW_1)
+            self._summary_data['int_mass_LLW']   = np.sum(LW_2)
+            self._summary_data['high_mass_LLW']  = np.sum(LW_3)
+            self._summary_data['vhigh_mass_LLW'] = np.sum(LW_4)
+
+            self._summary_data['low_mass_count'] = np.size(FUV_1)
+            self._summary_data['int_mass_count'] = np.size(FUV_2)
+            self._summary_data['high_mass_count'] = np.size(FUV_3)
+            self._summary_data['vhigh_mass_count'] = np.size(FUV_4)
+
+            
+
 
         return 
 
