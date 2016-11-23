@@ -21,12 +21,15 @@ import config      as config
 
 from constants import CONST as const
 
-# ------- load the global tables -----------
+#
+# ------- load the global data tables -----------
+#
 SE_TABLE  = DT.StellarEvolutionData()
 RAD_TABLE = DT.RadiationData()
 
-SN_YIELD_TABLE = DT.StellarYieldsTable('SNII')
-WIND_YIELD_TABLE = DT.StellarYieldsTable('wind')
+SN_YIELD_TABLE           = DT.StellarYieldsTable('SNII')
+WIND_YIELD_TABLE         = DT.StellarYieldsTable('wind')
+MASSIVE_STAR_YIELD_TABLE = DT.StellarYieldsTable('massive_star')
 
 class StarParticle:
 
@@ -379,11 +382,28 @@ class Star(StarParticle):
         self.properties['v_wind']    = vwind
 
     def compute_stellar_wind_yields(self):
+        """ compute_stellar_wind_yields
+
+        Computes yields from stellar winds for all considered species using
+        either the NuGrid table (1 < M < 25) or the PARSEC table ( M > 25). If
+        the parsec table is NOT used (config.stars.use_massive_star_yields == FALSE),
+        then extrapolation from the NuGrid table is used (which is very wrong).
+
+        Returns:
+            numpy array of total yields over lifetime for each element, sorted in 
+            atomic number order
+        """
+
 
         if( self.M_o < config.data.yields_mass_limits[1] ):
 
             yields = np.asarray(WIND_YIELD_TABLE.interpolate([self.M_o, self.Z],
                                                               self.wind_ejecta_abundances.keys()))
+        elif (config.stars.use_massive_star_yields):
+            # use yields from PARSEC massive star yields
+            yields = np.asarray(MASSIVE_STAR_YIELD_TABLE.interpolate([self.M_o, self.Z],
+                                                                     self.wind_ejecta_abundances.keys()))
+
         else: 
             #
             # For stars off of the grid, scale most massive star
