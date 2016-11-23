@@ -59,7 +59,6 @@ class StarParticle:
 
         self.tform = tform
         self.id    = id
-        print M, Z, abundances
 
         self.properties = {}
 
