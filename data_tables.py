@@ -412,13 +412,31 @@ class RadiationData(DataTable):
 class StellarYieldsTable(DataTable):
 
     def __init__(self, yield_type, name = None, manual_table = False):
+        """ StellarYieldsDataTable subclass of DataTable
+
+        Given an table type, reads in and constructs data table for 
+        stellar yields. Assigns a name to that table as a descriptor
+        (name is not used for anything else).
+
+        Args:
+           yield_type (str) : Type of table to load. Options are:
+               'SNII', 'wind', and 'massive_star'. Former two are NuGrid
+               yields for SNII and winds over 1 < M < 25, latter are wind
+               only yields for stars 8 < M < 350 from Slemer et. al. 2017.
+               Latter is meant to be used only for stars at M > 25.
+           name (str, optional) : Name for table, default None. When none,
+               a pre-determined descriptive name is used.
+
+        """
         
         if yield_type == 'SNII' and name == None:
             name = 'SNII Stellar Yields Table'
         elif yield_type == 'wind' and name == None:
             name = 'Stellar Winds Stellar Yields Table'
+        elif yield_type == 'massive_star' and name == None:
+            name = 'Massive Star Stellar Winds Yields Table'
         elif yield_type == None:
-            print "Error must set a yiled type as either SNII or wind"
+            print "Error must set a yiled type as either SNII, wind, or massive_star"
             raise RuntimeError
 
         
@@ -427,16 +445,33 @@ class StellarYieldsTable(DataTable):
         self.ndim = 2
         self.dim_names = ['mass', 'metallicity']
 
-        if not manual_table:
-            self.read_data(yield_type)
+        self.yield_type = yield_type
 
-    def read_data(self, yield_type, data_dir = None):
+        if not manual_table:
+            self.read_data()
+
+
+    def read_data(self, yield_type = None , data_dir = None):
+        """ read_data
+
+            Read in data. This is done automatically in initilization, but can
+            be repeated in case table needs to be reloaded for whatever reason.
+        """
+
+        if yield_type is None:
+            yield_type = self.yield_type
+
         if data_dir == None:
             self.data_dir = install_dir + 'Data/'
+
+        max_col = 87
         if yield_type == 'SNII':
             filename = 'stellar_yields.in'
-        else:
+        elif yield_type == 'wind':
             filename = 'stellar_yields_winds.in'
+        elif yield_type == 'massive_star':
+            filename = 'stellar_yields_massive_star.in'
+            max_col  = 33
        
         tmp_data = np.genfromtxt(self.data_dir + filename, usecols = (0,1), names=True)
 
@@ -448,7 +483,7 @@ class StellarYieldsTable(DataTable):
 
         self._array_size = int( np.prod(self.nbins.values()))
 
-        data   = np.genfromtxt(self.data_dir + filename, usecols=np.arange(2,87), names=True)
+        data   = np.genfromtxt(self.data_dir + filename, usecols=np.arange(2,max_col), names=True)
 
         for element in list(data.dtype.names):
             self.y[element]   = data[element].reshape(tuple(self.nbins.values()))
@@ -458,7 +493,12 @@ class StellarYieldsTable(DataTable):
 
 
     def interpolate(self, vals, ynames, silence = True):
-        output = DataTable.interpolate(self, vals,ynames,silence)
+        """ interpolate
+    
+        Wrapper around base class interpolation routine to handle 
+        edge cases better in this specific instance.
+        """
+        output = DataTable.interpolate(self, vals, ynames, silence)
 
         out_of_bounds = False
         if not isinstance(output, basestring):
