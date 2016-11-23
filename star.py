@@ -33,7 +33,7 @@ MASSIVE_STAR_YIELD_TABLE = DT.StellarYieldsTable('massive_star')
 
 class StarParticle:
 
-    def __init__(self, M, Z, abundances={'m_tot':1.0}, tform=0.0, id = 0):
+    def __init__(self, M = None, Z = None, abundances={'m_tot':1.0}, tform=0.0, id = 0):
         """
         Initialize star particle with mass and metallicity. Particle
         properties are assigned using input M and Z to interpolate
@@ -50,6 +50,8 @@ class StarParticle:
                 if tracking many. Default is 0
 
         """
+        if M is None or Z is None:
+            raise ValueError("Must set values for mass and metallicity")
 
         self.M   = M
         self.M_o = M
@@ -57,7 +59,7 @@ class StarParticle:
 
         self.tform = tform
         self.id    = id
-
+        print M, Z, abundances
 
         self.properties = {}
 
@@ -422,7 +424,6 @@ class Star(StarParticle):
                   'lifetime'  , 'age_agb', 'L_FUV', 'L_LW',
                   'Q1', 'Q2', 'E_Q1', 'E_Q2']
 
-        
         L, T, R, lifetime, age_agb = SE_TABLE.interpolate([self.M,self.Z], ['L','Teff','R','lifetime','age_agb'])
         self.properties['luminosity']  = L * const.Lsun
         self.properties['Teff']        = T
