@@ -489,6 +489,8 @@ class StellarYieldsTable(DataTable):
             self.y[element]   = data[element].reshape(tuple(self.nbins.values()))
 
 
+        self._available_yields = self.y.keys()
+
         return None
 
 
@@ -498,8 +500,20 @@ class StellarYieldsTable(DataTable):
         Wrapper around base class interpolation routine to handle 
         edge cases better in this specific instance.
         """
-        output = DataTable.interpolate(self, vals, ynames, silence)
 
+        # do some book keeping to return 0.0 if yields not present in
+        # table. This occurs for massive star yields (only up to Zn)
+        dict_output = OrderedDict()
+        for name in ynames:
+            dict_output[name] = 0.0
+
+        # check ynames to make sure they exist in the table
+        ynames_exist = [x for x in ynames if x in self._available_yields]
+
+        # find yields for elements present in the data table
+        output = DataTable.interpolate(self, vals, ynames_exist, silence)
+
+        # check output, make sure not out of bounds or offgrid
         out_of_bounds = False
         if not isinstance(output, basestring):
             for a in output:
@@ -510,7 +524,14 @@ class StellarYieldsTable(DataTable):
             if output == 'offgrid':
                 out_of_bounds = True
           
+        # if out of bounds, quietly give back all zeros
         if out_of_bounds:
             output = np.zeros(len(ynames))
 
-        return output
+        # If output is OK, assign available yeilds to dict
+        for name, i in enumerate(ynames_exist):
+            dict_output[name] = output[i]
+
+        # return only the array, not full dictionary
+        # can get away with just .values() since using OrderedDict
+        return dict_output.values()
