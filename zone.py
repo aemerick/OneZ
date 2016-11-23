@@ -444,7 +444,7 @@ class Zone:
 
             # add each new star to the star list
             for m in star_masses:
-#                print self.abundances
+
                 self.all_stars.add_new_star( star.Star(M=m, Z=self.Z, abundances=self.abundances,
                                                  tform=self.t,id=self._assign_particle_id()))
 
