@@ -471,7 +471,7 @@ class StellarYieldsTable(DataTable):
             filename = 'stellar_yields_winds.in'
         elif yield_type == 'massive_star':
             filename = 'stellar_yields_massive_star.in'
-            max_col  = 33
+            max_col  = 	34
        
         tmp_data = np.genfromtxt(self.data_dir + filename, usecols = (0,1), names=True)
 
@@ -529,7 +529,7 @@ class StellarYieldsTable(DataTable):
             output = np.zeros(len(ynames))
 
         # If output is OK, assign available yeilds to dict
-        for name, i in enumerate(ynames_exist):
+        for i, name in enumerate(ynames_exist):
             dict_output[name] = output[i]
 
         # return only the array, not full dictionary
