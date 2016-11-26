@@ -225,7 +225,7 @@ class Zone:
             # 
             if self.M_gas <= 0:
                 self.M_gas = 0.0
-                print "Gas in zone depleted. Ending simulation"
+                _my_print("Gas in zone depleted. Ending simulation")
                 break
 
             # 
@@ -517,7 +517,7 @@ class Zone:
     @property
     def t_dyn(self):
         if not config.zone.cosmological_evolution:
-            print "Error: Cannot compute cosmological dynamical time with non-cosmological simulation"
+            _my_print("Error: Cannot compute cosmological dynamical time with non-cosmological simulation")
             raise NotImplementedError
 
         return 0.1 * config.units.hubble_time * (1.0 + self.current_redshift)**(-3.0/2.0)
@@ -543,7 +543,7 @@ class Zone:
  
 
         elif config.zone.star_formation_method == 4 :
-            print "SFH from file not yet implemented"
+            _my_print("SFH from file not yet implemented")
             raise NotImplementedError
 
     def _check_output(self, force = False):
@@ -599,7 +599,7 @@ class Zone:
 
         name = config.io.dump_output_basename + "_%00004i"%(self._output_number)
 
-        print "Writing full dump output as " + name + " at time t = %4.4f"%(self.t)
+        _my_print("Writing full dump output as " + name + " at time t = %4.4f"%(self.t))
 
         pickle.dump( self , open(name, "wb"))
 
@@ -731,3 +731,5 @@ class Zone:
 
 
  
+def _my_print(string):
+    print '[Zone]: ' + string
