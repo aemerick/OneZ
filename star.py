@@ -182,11 +182,12 @@ class Star(StarParticle):
         self.M = self.M - M_loss
 
         if self.M < 0.0 and not 'SNIa' in self.properties['type']:
-            print "ERROR IN STAR: Negative stellar mass in particle type ", self.properties['type']
-            print "birth mass, mass, mdot_ej, mdot_ej*dt, sn_mass_loss, M_loss, age"
-            print self.M_o, self.M, self.Mdot_ej, self.Mdot_ej*dt, SN_mass_loss, M_loss, age
-            print self.properties
-            print "time, dt", t, dt
+            _my_print("ERROR IN STAR: Negative stellar mass in particle type " + self.properties['type'])
+            _my_print("birth mass, mass, mdot_ej, mdot_ej*dt, sn_mass_loss, M_loss, age")
+            _my_print("%3.3E %3.3E %3.3E %3.3E %3.3E %3.3E %3.3E"%(self.M_o, self.M, self.Mdot_ej, self.Mdot_ej*dt, SN_mass_loss, M_loss, age))
+            _my_print(self.properties)
+            _my_print("time, dt")
+            _my_print("%3.3E %3.3E"%(t, dt))
             raise RuntimeError
         elif self.M < 0.0 and 'SNIa' in self.properties['type']:
             self.M = 0.0
@@ -627,7 +628,7 @@ class StarList:
             try:
                 array = np.asarray( [x.properties[name] for x in _star_subset] )
             except KeyError:
-                print name, "star property or value not understood for " + star_type + " stars"
+                _my_print( name, "star property or value not understood for " + star_type + " stars")
                 raise KeyError
 
         #
@@ -733,3 +734,5 @@ class StarList:
     
 
 
+def _my_print(string):
+    print '[Star]: ' + string
