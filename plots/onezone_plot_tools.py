@@ -37,7 +37,7 @@ def star_sample(nstar, m, z, logM = False, logZ = True,
 
     for i in np.arange(np.size(z)):
         for j in np.arange(np.size(m)):
-            s[i*np.size(m) + j] = star.Star(m[j], z[i], id= j + i * np.size(m),
+            s[i*np.size(m) + j] = star.Star(M = m[j], Z = z[i], id= j + i * np.size(m),
                                             abundances=abundances)
 
     s = np.reshape(s, (np.size(z), np.size(m)))

@@ -2,9 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import onezone_plot_tools as ptools
+from onezone import config as config
 
-
-def plot_property(name):
+def plot_property(name, IMF_weighted = False):
 
     s, m, z  = ptools.star_sample( (1000, 4), [1.0, 100.0], [-4, -3, -2, np.log10(0.017)])
 
@@ -38,8 +38,14 @@ def plot_property(name):
             pmax = np.max(prop[prop>0.0])
             ax.plot(mtemp, ptemp, ls = ls[i], lw = 3, color = 'black', label='Z= %.1E'%(z[i]))
     else:
+    
+
         for i in np.arange(np.size(z)):
-            ax.plot(m, prop[i], ls = ls[i], lw = 3, color = 'black', label='Z= %.1E'%(z[i]))
+            y = 1.0 * prop[i]
+            if IMF_weighted:
+                y = y * config.zone.imf.imf(m) / np.sum(config.zone.imf.imf(m)) 
+
+            ax.plot(m, y, ls = ls[i], lw = 3, color = 'black', label='Z= %.1E'%(z[i]))
 
     ax.set_xlabel(r'Stellar Mass (M$_{\odot}$)')
 
@@ -64,6 +70,7 @@ def plot_property(name):
         ax.set_xlim(m[0], m[-1])
 
         ax.semilogy()
+    ax.minorticks_on()
     ax.legend(loc='best')
     plt.tight_layout()
     fig.set_size_inches(8,8)
