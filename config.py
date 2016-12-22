@@ -177,7 +177,7 @@ class _zone_parameters(_parameters):
         self.initial_abundances       = None
         self.track_massive_star_ejecta_mass = 25.0
 
-        self.imf                      = imf.salpeter()
+        self.imf                     = imf.salpeter()
         self.M_min                   = self.imf.M_min
         self.M_max                   = self.imf.M_max
         self.alpha                   = self.imf.alpha
