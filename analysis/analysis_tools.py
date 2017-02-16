@@ -91,17 +91,17 @@ def IMF_weighted_quantity(Mavg, imf = None, quantity = None, Z = 0.0043,
         print available_quantities
 
     elif isinstance(quantity, basestring):
-
-        s, m, z = ptools.star_sample( n_sample, Mavg, Z)
+        s, m, z = ptools.star_sample( n_sample, [1.0, 100.0], Z)
         s = np.reshape(s, (n_sample,))
+        m = np.reshape(m, (n_sample,))
         if quantity == 'ones':
             quantity_value = np.ones(np.size(m))
         else:
-            quantity_value = [item.properties[quantity] for item in s]
+            quantity_value = np.array([item.properties[quantity] for item in s])
         
-        
+        select  = (m >= Mavg[0]) * (m < Mavg[1])
         denom   = imf.imf(m)
-        num     = quantity_value * denom
+        num     = quantity_value[select] * denom[select]
 
         IMF_average = np.trapz(num) / np.trapz(denom)
     
