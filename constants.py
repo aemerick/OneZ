@@ -127,8 +127,8 @@ class constants:
 
         self.black_body_q0  = [0.1,  3.2]
         self.black_body_q1  = [0.001, 4.0]
-        self.black_body_fuv = [1.0E-4, 2.3E-5]
-        self.black_body_LW  = [5.0E-5, 5.0E-6]
+        self.black_body_fuv = [1.,1.] #[1.0E-4, 2.3E-5]
+        self.black_body_LW  = [1.,1.] #[5.0E-5, 5.0E-6]
       
         self.yr_to_s = 3.16224E7
 
