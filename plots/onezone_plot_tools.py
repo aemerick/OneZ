@@ -8,6 +8,9 @@ def star_sample(nstar, m, z, logM = False, logZ = True,
     nstar is tuple with number of stars in each dimension
 
     """
+    
+    if not np.iterable(nstar):
+        nstar = [nstar]
 
     if np.size(m) == 2:
         if logM:
