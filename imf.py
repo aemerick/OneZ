@@ -1,12 +1,12 @@
 # -- external --
 import numpy as np
 
-class IMF:
+class IMF(object):
 
     def __init__(self, M_min = 1.0 , M_max = 120.0):
 
-        self.M_min = M_min
-        self.M_max = M_max # min and max M of IMF
+        self._M_min = M_min
+        self._M_max = M_max # min and max M of IMF
 
     def integrate(self, m_a, m_b):
         raise NotImplementedError
@@ -48,7 +48,7 @@ class IMF:
 
         elif M != None and N == None:
 
-           stars = np.zeros(M / self.M_min)
+           stars = np.zeros(M / self._M_min)
            i = -1
            total_mass = 0.0
 
@@ -75,9 +75,9 @@ class IMF:
     def _tabulate_imf(self, npoints):
 
         # generate binned imf
-        dm = np.log10(self.M_max / self.M_min) / (1.0*(npoints-1))
+        dm = np.log10(self._M_max / self._M_min) / (1.0*(npoints-1))
 
-        m_o = np.log10(self.M_min)
+        m_o = np.log10(self._M_min)
 
         m   = 10.0**(m_o + np.arange(0,npoints) * dm)
 
@@ -89,6 +89,8 @@ class IMF:
         self._tabulated_m   = m
         self._tabulated_imf = IMF_vals
         self._m_o           = m_o
+
+        return
         
     def imf(self, M):
         """
@@ -98,13 +100,48 @@ class IMF:
         """
         raise NotImplementedError
 
-    @classmethod
-    def _M_min(cls):
-        return 1.0
+    def _retabulate_imf(self):
+        """
+        Function to retabulate IMF if it exists already and 
+        if a property is changed.
+        """
 
-    @classmethod
-    def _M_max(cls):
-        return 120.0
+        # haven't tabulated yet, handle this at first call to IMF
+        if not hasattr(self, '_tabulated_imf'):
+            return
+
+        npoints = np.size(self._tabulated_imf)
+        self._tabulate_imf(npoints)
+
+        return
+
+    @property
+    def M_min(self):
+        return self._M_min
+
+    @M_min.setter
+    def M_min(self, value):
+        self._M_min = value
+        self._retabulate_imf()
+        return
+
+    @property
+    def M_max(self):
+        return self._M_max
+
+    @M_max.setter
+    def M_max(self, value):
+        self._M_max = value
+        self._retabulate_imf()
+        return
+
+#    @classmethod
+#    def _M_min(cls):
+#        return self.M_min
+
+#    @classmethod
+#    def _M_max(cls):
+#        return self.M_max
 
 class kroupa(IMF):
 
@@ -113,8 +150,8 @@ class kroupa(IMF):
 
 
         self.alpha = alpha
-        self.M_min = M_min
-        self.M_max = M_max
+        self._M_min = M_min
+        self._M_max = M_max
 
     def imf(self, M):
         """
@@ -144,8 +181,8 @@ class salpeter(IMF):
 
     def __init__(self, alpha = 1.35, M_min = 1.0, M_max = 120.0):
 
-        self.M_min = M_min
-        self.M_max = M_max
+        self._M_min = M_min
+        self._M_max = M_max
         self.alpha = alpha
 
     def imf(self, M):
