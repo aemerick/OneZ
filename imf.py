@@ -48,7 +48,7 @@ class IMF(object):
 
         elif M != None and N == None:
 
-           stars = np.zeros(M / self._M_min)
+           stars = np.zeros(int(M / self._M_min))
            i = -1
            total_mass = 0.0
 
