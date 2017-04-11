@@ -571,15 +571,15 @@ class Zone:
 
     def _initialize_tabulated_sfh(self):
 
-        if not (config.zone.SFR_file is None):
-            if not os.path.isfile(config.zone.SFR_file):
-                print config.zone.SFR_file + " does not exist. Must set to use tabulated SFR"
+        if not (config.zone.SFR_filename is None):
+            if not os.path.isfile(config.zone.SFR_filename):
+                print config.zone.SFR_filename + " does not exist. Must set to use tabulated SFR"
                 raise ValueError
         else:
             print "Must set config.zone.SFR_file to use tabulated SFR"
             raise ValueError
 
-        data = np.genfromtxt(config.zone.SFR_file, names = True)
+        data = np.genfromtxt(config.zone.SFR_filename, names = True)
 
         self._tabulated_SFR_t = data['t']   * const.Myr / config.units.time  # in Myr
         self._tabulated_SFR   = data['SFR'] / const.yr_to_s * config.units.time
