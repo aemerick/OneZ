@@ -12,6 +12,8 @@ __author__ = "aemerick <emerick@astro.columbia.edu>"
 # external
 import numpy as np
 from collections import OrderedDict
+import os
+from scipy.interpolate import interp1d
 
 try:
     import cPickle as pickle
@@ -24,7 +26,6 @@ import imf  as imf
 import star as star
 import config as config
 from constants import CONST as const
-
 
 def restart(filename):
     """
@@ -72,7 +73,7 @@ class Zone:
         self.Z         = config.zone.initial_metallicity
         self._M_sf_reservoir = 0.0
 
-        self._SFH_initialized = False # only for SF method 4
+        self._SFR_initialized = False # only for SF method 4
 
         self.initial_abundances = config.zone.initial_abundances
         self.species_masses     = OrderedDict()
@@ -569,7 +570,7 @@ class Zone:
 
         return self._SFR_interpolation_function(t)
 
-    def _initialize_tabulated_sfh(self):
+    def _initialize_tabulated_sfr(self):
 
         if not (config.zone.SFR_filename is None):
             if not os.path.isfile(config.zone.SFR_filename):
