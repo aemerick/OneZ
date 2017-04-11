@@ -72,6 +72,8 @@ class Zone:
         self.Z         = config.zone.initial_metallicity
         self._M_sf_reservoir = 0.0
 
+        self._SFH_initialized = False # only for SF method 4
+
         self.initial_abundances = config.zone.initial_abundances
         self.species_masses     = OrderedDict()
 
@@ -539,12 +541,54 @@ class Zone:
             self.Mdot_sf = config.zone.SFR_efficiency * self.M_gas
 
         elif config.zone.star_formation_method == 3:
-            self.Mdot_sf = self.zone.SFR_dyn_efficiency * self.M_gas / self.t_dyn
+            self.Mdot_sf = config.zone.SFR_dyn_efficiency * self.M_gas / self.t_dyn
  
-
         elif config.zone.star_formation_method == 4 :
-            _my_print("SFH from file not yet implemented")
-            raise NotImplementedError
+            # interpolate SFR from tabulated SFH
+            self.Mdot_sf = self._interpolate_SFR()
+
+        return
+
+    def _interpolate_SFR(self):
+
+        if not self._SFR_initialized:
+            self._initialize_tabulated_sfr()
+
+        t = self.t + self.dt*0.5
+
+        if t < self._tabulated_SFR_t[0]:   
+            print "Current time below minimum time in tabulated SFR", t, self._tabulated_SFR_t[0]
+            raise ValueError
+
+        if t > self._tabulated_SFR_t[-1]:
+            print "Current time above maximum time in tabulated SFR", t, self._tabulated_SFR_t[-1]
+            print "Assuming this is expected behavior. Saving and exiting."
+            self._check_output(force = True)
+            raise ValueError
+
+
+        return self._SFR_interpolation_function(t)
+
+    def _initialize_tabulated_sfh(self):
+
+        if not (config.zone.SFR_file is None):
+            if not os.path.isfile(config.zone.SFR_file):
+                print config.zone.SFR_file + " does not exist. Must set to use tabulated SFR"
+                raise ValueError
+        else:
+            print "Must set config.zone.SFR_file to use tabulated SFR"
+            raise ValueError
+
+        data = np.genfromtxt(config.zone.SFR_file, names = True)
+
+        self._tabulated_SFR_t = data['t']   * const.Myr / config.units.time  # in Myr
+        self._tabulated_SFR   = data['SFR'] / const.yr_to_s * config.units.time
+
+
+        self._SFR_interpolation_function = interp1d(self._tabulated_SFR_t, 
+                                                    self._tabulated_SFR, kind = 'linear')
+
+        return 
 
     def _check_output(self, force = False):
         """
