@@ -30,7 +30,7 @@ WIND_YIELD_TABLE = DT.StellarYieldsTable('wind')
 
 class StarParticle:
 
-    def __init__(self, M, Z, abundances={'m_tot':1.0}, tform=0.0, id = 0):
+    def __init__(self, M = None, Z = None, abundances={'m_tot':1.0}, tform=0.0, id = 0):
         """
         Initialize star particle with mass and metallicity. Particle
         properties are assigned using input M and Z to interpolate
