@@ -131,6 +131,7 @@ class constants:
         self.black_body_LW  = [1.,1.] #[5.0E-5, 5.0E-6]
       
         self.yr_to_s = 3.16224E7
+        self.Myr     = self.yr_to_s * 1.0E6
 
         self.km      = 1.0E5
         self.pc      = 3.0865677E18
