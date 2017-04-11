@@ -177,13 +177,13 @@ class _zone_parameters(_parameters):
         self.initial_abundances       = None
         self.track_massive_star_ejecta_mass = 25.0
 
-        self.imf                      = imf.salpeter()
+        self.imf                     = imf.salpeter()
         self.M_min                   = self.imf.M_min
         self.M_max                   = self.imf.M_max
         self.alpha                   = self.imf.alpha
 
-        self.star_formation_method    = 1           # 0, 1, 2, 3
-        self.SFH_filename             = None
+        self.star_formation_method    = 1           # 0, 1, 2, 3, 4
+        self.SFR_filename             = None
         self.constant_SFR             = 10.0        # code mass / code time
 
         self.cosmological_evolution   = False       # on or off
@@ -310,6 +310,7 @@ class _star_particle_parameters(_parameters):
         self.AGB_wind_velocity             = 20.0      # km / s
 
         self.direct_collapse_mass_threshold = 25.0     # top of NuGrid data set
+        self.use_massive_star_yields        = True
         
 
         self.normalize_black_body_to_OSTAR = True

@@ -4,7 +4,9 @@ import matplotlib.pyplot as plt
 import onezone_plot_tools as ptools
 from collections import OrderedDict
 
-def plot_yields(abundances, yield_mode, fractional=False):
+from onezone import config as config
+
+def plot_yields(abundances, yield_mode, fractional=False, IMF_weighted=False):
 
 
     s, m, z  = ptools.star_sample( (200, 4), [1.0, 100.0],
@@ -36,8 +38,13 @@ def plot_yields(abundances, yield_mode, fractional=False):
 
         for a in abundances:
             norm = 1.0
+
             if fractional:
                 norm = yields['m_tot'][nz]
+
+            if IMF_weighted:
+                weights = config.zone.imf.imf(m)
+                yields[a][nz] = yields[a][nz] * weights / np.sum(weights)
 
             ax.plot(m, yields[a][nz] / norm, ls = ls[ls_count], color = colors[color_count],
                        label = a, lw = 3)
@@ -51,6 +58,8 @@ def plot_yields(abundances, yield_mode, fractional=False):
 
         if fractional:
             ylabel = r'Fractional Ejected Mass (M$_{\odot}$)'
+        elif IMF_weighted:
+            ylabel = r'IMF Weighted Ejected Mass (M$_{\odot}$)'
         else:
             ylabel = r'Ejected Mass (M$_{\odot}$)'
  
@@ -65,6 +74,9 @@ def plot_yields(abundances, yield_mode, fractional=False):
         fractional_out = ''
         if fractional:
             fractional_out = 'fractional_'
+        elif IMF_weighted:
+            fractional_out = 'IMF_weighted_'
+
         if yield_mode == 'wind':
             yield_out = 'wind'
         elif yield_mode == 'SN':
@@ -84,7 +96,18 @@ for a in ['H','He','C','N','O','Mg','Si','Mn','Fe','Ni','Y','Ba','Eu']:
     abundances[a] = 0.0
 
 plot_yields(abundances, yield_mode = 'wind')
-plot_yields(abundances, yield_mode = 'wind', fractional=True)
+plot_yields(abundances, yield_mode = 'wind', IMF_weighted=True)
 
 plot_yields(abundances, yield_mode = 'SN')
-plot_yields(abundances, yield_mode = 'SN', fractional=True)
+plot_yields(abundances, yield_mode = 'SN', IMF_weighted = True)
+
+
+
+
+plot_yields(abundances, yield_mode = 'wind')
+plot_yields(abundances, yield_mode = 'wind', fractional = False)
+
+plot_yields(abundances, yield_mode = 'SN')
+plot_yields(abundances, yield_mode = 'SN', fractional = False)
+
+

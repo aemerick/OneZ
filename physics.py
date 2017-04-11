@@ -158,7 +158,7 @@ def WD_lifetime(t, t_form, lifetime, DTD_slope = 1.0, NSNIa = 0.043, z = 0):
     if ( rnum < tabulated_probability[0] ):
         # very highly unlikely, explode right away
         # print warning since this is so unlikely
-        print "WARNING: Type Ia going off immediately after star's death"
+        _my_print("WARNING: Type Ia going off immediately after star's death")
         WD_lifetime = time[0]
     elif (rnum > tabulated_probability[-1]):
         # never explode
@@ -184,3 +184,7 @@ def white_dwarf_mass(M):
 
 
     return wd_mass
+
+
+def _my_print(string):
+    print "[Physics]: " + string

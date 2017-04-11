@@ -21,12 +21,15 @@ import config      as config
 
 from constants import CONST as const
 
-# ------- load the global tables -----------
+#
+# ------- load the global data tables -----------
+#
 SE_TABLE  = DT.StellarEvolutionData()
 RAD_TABLE = DT.RadiationData()
 
-SN_YIELD_TABLE = DT.StellarYieldsTable('SNII')
-WIND_YIELD_TABLE = DT.StellarYieldsTable('wind')
+SN_YIELD_TABLE           = DT.StellarYieldsTable('SNII')
+WIND_YIELD_TABLE         = DT.StellarYieldsTable('wind')
+MASSIVE_STAR_YIELD_TABLE = DT.StellarYieldsTable('massive_star')
 
 class StarParticle:
 
@@ -47,6 +50,8 @@ class StarParticle:
                 if tracking many. Default is 0
 
         """
+        if M is None or Z is None:
+            raise ValueError("Must set values for mass and metallicity")
 
         self.M   = M
         self.M_o = M
@@ -54,7 +59,6 @@ class StarParticle:
 
         self.tform = tform
         self.id    = id
-
 
         self.properties = {}
 
@@ -178,11 +182,12 @@ class Star(StarParticle):
         self.M = self.M - M_loss
 
         if self.M < 0.0 and not 'SNIa' in self.properties['type']:
-            print "ERROR IN STAR: Negative stellar mass in particle type ", self.properties['type']
-            print "birth mass, mass, mdot_ej, mdot_ej*dt, sn_mass_loss, M_loss, age"
-            print self.M_o, self.M, self.Mdot_ej, self.Mdot_ej*dt, SN_mass_loss, M_loss, age
-            print self.properties
-            print "time, dt", t, dt
+            _my_print("ERROR IN STAR: Negative stellar mass in particle type " + self.properties['type'])
+            _my_print("birth mass, mass, mdot_ej, mdot_ej*dt, sn_mass_loss, M_loss, age")
+            _my_print("%3.3E %3.3E %3.3E %3.3E %3.3E %3.3E %3.3E"%(self.M_o, self.M, self.Mdot_ej, self.Mdot_ej*dt, SN_mass_loss, M_loss, age))
+            _my_print(self.properties)
+            _my_print("time, dt")
+            _my_print("%3.3E %3.3E"%(t, dt))
             raise RuntimeError
         elif self.M < 0.0 and 'SNIa' in self.properties['type']:
             self.M = 0.0
@@ -379,11 +384,28 @@ class Star(StarParticle):
         self.properties['v_wind']    = vwind
 
     def compute_stellar_wind_yields(self):
+        """ compute_stellar_wind_yields
+
+        Computes yields from stellar winds for all considered species using
+        either the NuGrid table (1 < M < 25) or the PARSEC table ( M > 25). If
+        the parsec table is NOT used (config.stars.use_massive_star_yields == FALSE),
+        then extrapolation from the NuGrid table is used (which is very wrong).
+
+        Returns:
+            numpy array of total yields over lifetime for each element, sorted in 
+            atomic number order
+        """
+
 
         if( self.M_o < config.data.yields_mass_limits[1] ):
 
             yields = np.asarray(WIND_YIELD_TABLE.interpolate([self.M_o, self.Z],
                                                               self.wind_ejecta_abundances.keys()))
+        elif (config.stars.use_massive_star_yields):
+            # use yields from PARSEC massive star yields
+            yields = np.asarray(MASSIVE_STAR_YIELD_TABLE.interpolate([self.M_o, self.Z],
+                                                                     self.wind_ejecta_abundances.keys()))
+
         else: 
             #
             # For stars off of the grid, scale most massive star
@@ -402,7 +424,6 @@ class Star(StarParticle):
                   'lifetime'  , 'age_agb', 'L_FUV', 'L_LW',
                   'Q1', 'Q2', 'E_Q1', 'E_Q2']
 
-        
         L, T, R, lifetime, age_agb = SE_TABLE.interpolate([self.M,self.Z], ['L','Teff','R','lifetime','age_agb'])
         self.properties['luminosity']  = L * const.Lsun
         self.properties['Teff']        = T
@@ -607,7 +628,7 @@ class StarList:
             try:
                 array = np.asarray( [x.properties[name] for x in _star_subset] )
             except KeyError:
-                print name, "star property or value not understood for " + star_type + " stars"
+                _my_print( name, "star property or value not understood for " + star_type + " stars")
                 raise KeyError
 
         #
@@ -713,3 +734,5 @@ class StarList:
     
 
 
+def _my_print(string):
+    print '[Star]: ' + string

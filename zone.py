@@ -12,6 +12,8 @@ __author__ = "aemerick <emerick@astro.columbia.edu>"
 # external
 import numpy as np
 from collections import OrderedDict
+import os
+from scipy.interpolate import interp1d
 
 try:
     import cPickle as pickle
@@ -24,7 +26,6 @@ import imf  as imf
 import star as star
 import config as config
 from constants import CONST as const
-
 
 def restart(filename):
     """
@@ -71,6 +72,8 @@ class Zone:
         self.all_stars = star.StarList()
         self.Z         = config.zone.initial_metallicity
         self._M_sf_reservoir = 0.0
+
+        self._SFR_initialized = False # only for SF method 4
 
         self.initial_abundances = config.zone.initial_abundances
         self.species_masses     = OrderedDict()
@@ -225,7 +228,7 @@ class Zone:
             # 
             if self.M_gas <= 0:
                 self.M_gas = 0.0
-                print "Gas in zone depleted. Ending simulation"
+                _my_print("Gas in zone depleted. Ending simulation")
                 break
 
             # 
@@ -444,8 +447,8 @@ class Zone:
 
             # add each new star to the star list
             for m in star_masses:
-#                print self.abundances
-                self.all_stars.add_new_star( star.Star(m, self.Z, self.abundances,
+
+                self.all_stars.add_new_star( star.Star(M=m, Z=self.Z, abundances=self.abundances,
                                                  tform=self.t,id=self._assign_particle_id()))
 
 
@@ -517,7 +520,7 @@ class Zone:
     @property
     def t_dyn(self):
         if not config.zone.cosmological_evolution:
-            print "Error: Cannot compute cosmological dynamical time with non-cosmological simulation"
+            _my_print("Error: Cannot compute cosmological dynamical time with non-cosmological simulation")
             raise NotImplementedError
 
         return 0.1 * config.units.hubble_time * (1.0 + self.current_redshift)**(-3.0/2.0)
@@ -539,12 +542,54 @@ class Zone:
             self.Mdot_sf = config.zone.SFR_efficiency * self.M_gas
 
         elif config.zone.star_formation_method == 3:
-            self.Mdot_sf = self.zone.SFR_dyn_efficiency * self.M_gas / self.t_dyn
+            self.Mdot_sf = config.zone.SFR_dyn_efficiency * self.M_gas / self.t_dyn
  
-
         elif config.zone.star_formation_method == 4 :
-            print "SFH from file not yet implemented"
-            raise NotImplementedError
+            # interpolate SFR from tabulated SFH
+            self.Mdot_sf = self._interpolate_SFR()
+
+        return
+
+    def _interpolate_SFR(self):
+
+        if not self._SFR_initialized:
+            self._initialize_tabulated_sfr()
+
+        t = self.t + self.dt*0.5
+
+        if t < self._tabulated_SFR_t[0]:   
+            print "Current time below minimum time in tabulated SFR", t, self._tabulated_SFR_t[0]
+            raise ValueError
+
+        if t > self._tabulated_SFR_t[-1]:
+            print "Current time above maximum time in tabulated SFR", t, self._tabulated_SFR_t[-1]
+            print "Assuming this is expected behavior. Saving and exiting."
+            self._check_output(force = True)
+            raise ValueError
+
+
+        return self._SFR_interpolation_function(t)
+
+    def _initialize_tabulated_sfr(self):
+
+        if not (config.zone.SFR_filename is None):
+            if not os.path.isfile(config.zone.SFR_filename):
+                print config.zone.SFR_filename + " does not exist. Must set to use tabulated SFR"
+                raise ValueError
+        else:
+            print "Must set config.zone.SFR_file to use tabulated SFR"
+            raise ValueError
+
+        data = np.genfromtxt(config.zone.SFR_filename, names = True)
+
+        self._tabulated_SFR_t = data['t']   * const.Myr / config.units.time  # in Myr
+        self._tabulated_SFR   = data['SFR'] / const.yr_to_s * config.units.time
+
+
+        self._SFR_interpolation_function = interp1d(self._tabulated_SFR_t, 
+                                                    self._tabulated_SFR, kind = 'linear')
+
+        return 
 
     def _check_output(self, force = False):
         """
@@ -599,7 +644,7 @@ class Zone:
 
         name = config.io.dump_output_basename + "_%00004i"%(self._output_number)
 
-        print "Writing full dump output as " + name + " at time t = %4.4f"%(self.t)
+        _my_print("Writing full dump output as " + name + " at time t = %4.4f"%(self.t))
 
         pickle.dump( self , open(name, "wb"))
 
@@ -731,3 +776,5 @@ class Zone:
 
 
  
+def _my_print(string):
+    print '[Zone]: ' + string
