@@ -36,9 +36,8 @@ class IMF(object):
                 print "Failure finding bin"
 
             return i
-      
 
-        if N != None and M == None:
+        if (not (N is None)) and M is None:
             random_numbers = np.random.rand(N)
             stars = np.zeros(N)
 
@@ -46,7 +45,7 @@ class IMF(object):
                 bin = _find_bin(random_numbers[i], self._tabulated_imf)
                 stars[i] = 10.0**(bin * self._tabulated_dm + self._m_o)
 
-        elif M != None and N == None:
+        elif (not (M is None)) and N is None:
 
            stars = np.zeros(int(M / self._M_min))
            i = -1
@@ -69,7 +68,6 @@ class IMF(object):
                    stars = stars[0 : i -1]
 
         return stars
-              
 
 
     def _tabulate_imf(self, npoints):
