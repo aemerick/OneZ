@@ -183,7 +183,7 @@ class _zone_parameters(_parameters):
         self.alpha                   = self.imf.alpha
 
         self.star_formation_method    = 1           # 0, 1, 2, 3, 4
-        self.SFR_filename             = None
+        self.SFR_filename             = "SFR.in"
         self.constant_SFR             = 10.0        # code mass / code time
 
         self.cosmological_evolution   = False       # on or off
