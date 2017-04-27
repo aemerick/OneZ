@@ -74,6 +74,7 @@ class Zone:
         self._M_sf_reservoir = 0.0
 
         self._SFR_initialized = False # only for SF method 4
+        self._mass_loading_initialized = False # only for mass_outflow_method 2
 
         self.initial_abundances = config.zone.initial_abundances
         self.species_masses     = OrderedDict()
@@ -516,11 +517,13 @@ class Zone:
             else:
                 self.Mdot_out = config.zone.mass_loading_factor * self.Mdot_sf
 
-        elif config.zone.mass_outflow_methd == 2:
+        elif config.zone.mass_outflow_method == 2:
 
             # these are fractional outflow rates:
-            self.Mdot_out             = self._interpolate_tabulated_outflow('total_mass') # get total outflow rate
-            self.Mdot_out_species[e]  = self._interpolate_tabulated_outflow(e)            # for each species
+            self.Mdot_out             = self._interpolate_tabulated_outflow('m_tot')  # get total outflow rate
+
+            for e in self.abundances.keys():
+                self.Mdot_out_species[e]  = self._interpolate_tabulated_outflow(e)       # for each species
 
             # multiply by SFR and current total amount of each species
             self.Mdot_out = self.Mdot_out * self.Mdot_sf * self.M_gas
@@ -563,7 +566,7 @@ class Zone:
 
         return
 
-    def _interpolate_mass_outflow(self, species):
+    def _interpolate_tabulated_outflow(self, species):
 
         if not self._mass_loading_initialized:
             self._initialize_tabulated_mass_outflow()
@@ -622,10 +625,10 @@ class Zone:
 
         return
 
-    def _initialize_tabulated_outflow(self):
+    def _initialize_tabulated_mass_outflow(self):
 
         if not (config.zone.outflow_filename is None):
-            if not os.path.isfile(config.zone.outlow_filename):
+            if not os.path.isfile(config.zone.outflow_filename):
                 _my_print(config.zone.outflow_filename + " does not exist. Must set properly to use tabulated outflow rates")
                 raise ValueError
         else:
@@ -639,11 +642,12 @@ class Zone:
 
         species = [x for x in data.dtype.names if x is not 't']
 
+        self._tabulated_outflow        = {}
         for e in species:
             self._tabulated_outflow[e] = data[e]
 
         self._outflow_interpolation_generator = lambda e : interp1d(self._tabulated_outflow_t,
-                                                                    self.tabulated_outflow[e],
+                                                                    self._tabulated_outflow[e],
                                                                     kind = 'linear')
 
         self.Mdot_out_species = {} # set up dictionary to store outflow rates

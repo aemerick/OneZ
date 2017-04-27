@@ -185,6 +185,7 @@ class _zone_parameters(_parameters):
         self.star_formation_method    = 1           # 0, 1, 2, 3, 4
         self.SFR_filename             = "SFR.in"
         self.constant_SFR             = 10.0        # code mass / code time
+        self.outflow_filename         = "mass_outflow.in"
 
         self.cosmological_evolution   = False       # on or off
         self.initial_redshift         = 0.0       #
