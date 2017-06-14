@@ -16,10 +16,14 @@ import os
 from scipy.interpolate import interp1d
 
 try:
-    import cPickle as pickle
+    import dill as pickle
 except:
-    print "WARNING: cPickle unavailable, using pickle - data dumps will be slow"
-    import pickle
+    print "WARNING: Dill unavailable, attempting to use pickle, which may crash"
+    try:
+        import cPickle as pickle
+    except:
+        print "WARNING: cPickle unavailable, using pickle - data dumps will be slow"
+        import pickle
 
 # internal
 import imf  as imf
@@ -96,6 +100,8 @@ class Zone:
         self._summary_data = {}
         self.Mdot_ej = 0.0
         self.Mdot_DM = 0.0
+        self.Mdot_out = 0.0
+        self.Mdot_out_species = OrderedDict()
         self.Mdot_ej_masses = OrderedDict()
         self.SN_ej_masses   = OrderedDict()
 
@@ -107,6 +113,7 @@ class Zone:
         #
         for e in config.zone.species_to_track:
             self.species_masses[e] = 0.0
+            self.Mdot_out_species[e] = 0.0
 
         if (config.zone.initial_stellar_mass > 0.0):
             self._make_new_stars( M_sf = config.zone.initial_stellar_mass )
@@ -710,7 +717,7 @@ class Zone:
 
         _my_print("Writing full dump output as " + name + " at time t = %4.4f"%(self.t))
 
-        pickle.dump( self , open(name, "w"))
+        pickle.dump( self , open(name, "w"), -1)
 
         self._output_number += 1
 
