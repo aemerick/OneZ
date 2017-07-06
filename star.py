@@ -166,7 +166,7 @@ class Star(StarParticle):
 
                 if self.properties['SNIa_candidate']:
 
-                    if self.properties['WD_lifetime'] >= t*config.units.time:
+                    if self.properties['WD_lifetime'] + self.tform <= t*config.units.time:
 
                         # go Type Ia supernova
                         self.properties['type'] = 'new_SNIa_remnant'
