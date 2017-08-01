@@ -16,10 +16,14 @@ import os
 from scipy.interpolate import interp1d
 
 try:
-    import cPickle as pickle
+    import dill as pickle
 except:
-    print "WARNING: cPickle unavailable, using pickle - data dumps will be slow"
-    import pickle
+    print "WARNING: Dill unavailable, attempting to use pickle, which may crash"
+    try:
+        import cPickle as pickle
+    except:
+        print "WARNING: cPickle unavailable, using pickle - data dumps will be slow"
+        import pickle
 
 # internal
 import imf  as imf
@@ -74,6 +78,7 @@ class Zone:
         self._M_sf_reservoir = 0.0
 
         self._SFR_initialized = False # only for SF method 4
+        self._mass_loading_initialized = False # only for mass_outflow_method 2
 
         self.initial_abundances = config.zone.initial_abundances
         self.species_masses     = OrderedDict()
@@ -95,6 +100,8 @@ class Zone:
         self._summary_data = {}
         self.Mdot_ej = 0.0
         self.Mdot_DM = 0.0
+        self.Mdot_out = 0.0
+        self.Mdot_out_species = OrderedDict()
         self.Mdot_ej_masses = OrderedDict()
         self.SN_ej_masses   = OrderedDict()
 
@@ -106,6 +113,7 @@ class Zone:
         #
         for e in config.zone.species_to_track:
             self.species_masses[e] = 0.0
+            self.Mdot_out_species[e] = 0.0
 
         if (config.zone.initial_stellar_mass > 0.0):
             self._make_new_stars( M_sf = config.zone.initial_stellar_mass )
@@ -114,7 +122,7 @@ class Zone:
 
         self._update_globals()
 
-        return 
+        return
 
     def set_initial_abundances(self, elements, abundances = None):
         """
@@ -154,7 +162,7 @@ class Zone:
         self.special_mass_accumulator['m_massive'] = 0.0
 
         return None
-        
+
     def _accumulate_new_sn(self):
         """
         Looks through all stars, checking to see if any new SN or SNIa
@@ -167,7 +175,7 @@ class Zone:
         #if np.size(star_type) > 1:
         self.N_SNIa += star_type.count('new_SNIa_remnant')
         self.N_SNII += star_type.count('new_remnant')
-        
+
         return
 
     def evolve(self):
@@ -222,22 +230,21 @@ class Zone:
                            self.Mdot_out) * self.dt - self.M_sf +\
                            self.SN_ej_masses['m_tot']
 
-            
             #
             # VI) Check if reservoir is empty
-            # 
+            #
             if self.M_gas <= 0:
                 self.M_gas = 0.0
                 _my_print("Gas in zone depleted. Ending simulation")
                 break
 
-            # 
+            #
             # VII) Compute increase / decrease of individual abundances
             #
             for e in self.species_masses.iterkeys():
                 self.species_masses[e] = self.species_masses[e] +  (self.Mdot_in  * self.Mdot_in_abundances(e) +\
                                            self.Mdot_ej_masses[e] -\
-                                           self.Mdot_out * abundances[e]) * self.dt -\
+                                           self.Mdot_out_species[e]) * self.dt -\
                                            self.M_sf * abundances[e] + self.SN_ej_masses[e]
             self.M_gas = new_gas_mass
             self.M_DM  = self.M_DM + self.Mdot_DM * self.dt
@@ -474,7 +481,7 @@ class Zone:
         """
 
         self.Mdot_DM = 0.0
-        
+
         if not config.zone.cosmological_evolution:
             return
 
@@ -510,10 +517,26 @@ class Zone:
         if config.zone.cosmological_evolution:
             factor = factor * (1.0 + self.current_redshift)**(-config.zone.mass_loading_index/2.0)
 
-        if config.zone.use_SF_mass_reservoir or config.zone.use_stochastic_mass_sampling:
-            self.Mdot_out = config.zone.mass_loading_factor * self.M_sf / self.dt
-        else:
-            self.Mdot_out = config.zone.mass_loading_factor * self.Mdot_sf
+        elif config.zone.mass_outflow_method == 1:
+            # mass outflow is controlled by a mass loading factor parameter
+            if config.zone.use_SF_mass_reservoir or config.zone.use_stochastic_mass_sampling:
+                self.Mdot_out = config.zone.mass_loading_factor * self.M_sf / self.dt
+            else:
+                self.Mdot_out = config.zone.mass_loading_factor * self.Mdot_sf
+
+        elif config.zone.mass_outflow_method == 2:
+
+            # these are fractional outflow rates:
+            self.Mdot_out             = self._interpolate_tabulated_outflow('m_tot')  # get total outflow rate
+
+            for e in self.abundances.keys():
+                self.Mdot_out_species[e]  = self._interpolate_tabulated_outflow(e)       # for each species
+
+            # multiply by SFR and current total amount of each species
+            self.Mdot_out = self.Mdot_out * self.Mdot_sf * self.M_gas
+
+            for e in self.Mdot_out_species.keys():
+                self.Mdot_out_species[e] = self.Mdot_out_species[e] * self.Mdot_sf * (self.M_gas * self.abundances[e])
 
         return
 
@@ -543,12 +566,31 @@ class Zone:
 
         elif config.zone.star_formation_method == 3:
             self.Mdot_sf = config.zone.SFR_dyn_efficiency * self.M_gas / self.t_dyn
- 
+
         elif config.zone.star_formation_method == 4 :
             # interpolate SFR from tabulated SFH
             self.Mdot_sf = self._interpolate_SFR()
 
         return
+
+    def _interpolate_tabulated_outflow(self, species):
+
+        if not self._mass_loading_initialized:
+            self._initialize_tabulated_mass_outflow()
+
+        t = self.t + self.dt*0.5
+
+        if t < self._tabulated_outflow_t[0]:
+            _my_print("Current time below minimum time in tabulated outflow rates %3.3E %3.3E"%(t, self._tabulated_outflow_t[0]))
+            raise ValueError
+
+        if t > self._tabulated_outflow_t[-1]:
+            _my_print("Current time above maximum time in tabulated outflow %3.3E %3.3E"%(t, self._tabulated_outflow_t[-1]))
+            _my_print("Assuming this is expected behavior. Saving and exiting.")
+            self._check_output(force = True)
+            raise ValueError
+
+        return self._outflow_interpolation_generator(species)(t)
 
     def _interpolate_SFR(self):
 
@@ -557,16 +599,15 @@ class Zone:
 
         t = self.t + self.dt*0.5
 
-        if t < self._tabulated_SFR_t[0]:   
-            print "Current time below minimum time in tabulated SFR", t, self._tabulated_SFR_t[0]
+        if t < self._tabulated_SFR_t[0]:
+            _my_print("Current time below minimum time in tabulated SFR %3.3E %3.3E"%(t, self._tabulated_SFR_t[0]))
             raise ValueError
 
         if t > self._tabulated_SFR_t[-1]:
-            print "Current time above maximum time in tabulated SFR", t, self._tabulated_SFR_t[-1]
-            print "Assuming this is expected behavior. Saving and exiting."
+            _my_print("Current time above maximum time in tabulated SFR %3.3E %3.3E"%(t, self._tabulated_SFR_t[-1]))
+            _my_print("Assuming this is expected behavior. Saving and exiting.")
             self._check_output(force = True)
             raise ValueError
-
 
         return self._SFR_interpolation_function(t)
 
@@ -574,10 +615,10 @@ class Zone:
 
         if not (config.zone.SFR_filename is None):
             if not os.path.isfile(config.zone.SFR_filename):
-                print config.zone.SFR_filename + " does not exist. Must set to use tabulated SFR"
+                _my_print(config.zone.SFR_filename + " does not exist. Must set to use tabulated SFR")
                 raise ValueError
         else:
-            print "Must set config.zone.SFR_file to use tabulated SFR"
+            _my_print("Must set config.zone.SFR_file to use tabulated SFR")
             raise ValueError
 
         data = np.genfromtxt(config.zone.SFR_filename, names = True)
@@ -586,10 +627,41 @@ class Zone:
         self._tabulated_SFR   = data['SFR'] / const.yr_to_s * config.units.time
 
 
-        self._SFR_interpolation_function = interp1d(self._tabulated_SFR_t, 
+        self._SFR_interpolation_function = interp1d(self._tabulated_SFR_t,
                                                     self._tabulated_SFR, kind = 'linear')
 
-        return 
+        return
+
+    def _initialize_tabulated_mass_outflow(self):
+
+        if not (config.zone.outflow_filename is None):
+            if not os.path.isfile(config.zone.outflow_filename):
+                _my_print(config.zone.outflow_filename + " does not exist. Must set properly to use tabulated outflow rates")
+                raise ValueError
+        else:
+            _my_print("Must set config.zone.outflow_filename to use tabulated outflow rates")
+            raise ValueError
+
+        # skip header assuming this is generated by galaxy_analysis generation utilities
+        data = np.genfromtxt(config.zone.outflow_filename, names = True, skip_header = 5)
+
+        self._tabulated_outflow_t  = data['t'] * const.Myr / config.units.time
+
+        species = [x for x in data.dtype.names if x is not 't']
+
+        self._tabulated_outflow        = {}
+        for e in species:
+            self._tabulated_outflow[e] = data[e]
+
+        self._outflow_interpolation_generator = lambda e : interp1d(self._tabulated_outflow_t,
+                                                                    self._tabulated_outflow[e],
+                                                                    kind = 'linear')
+
+        self.Mdot_out_species = {} # set up dictionary to store outflow rates
+        for e in species:
+            self.Mdot_out_species[e] = 0.0
+
+        return
 
     def _check_output(self, force = False):
         """
@@ -603,7 +675,7 @@ class Zone:
 
         #
         # Otherwise output based on user supplied conditions
-        # 
+        #
 
         #
         # check for full write out
@@ -636,17 +708,16 @@ class Zone:
 
         return
 
-        
     def write_full_dump(self):
         """
-        Pickle current simulation 
+        Pickle current simulation
         """
 
         name = config.io.dump_output_basename + "_%00004i"%(self._output_number)
 
         _my_print("Writing full dump output as " + name + " at time t = %4.4f"%(self.t))
 
-        pickle.dump( self , open(name, "wb"))
+        pickle.dump( self , open(name, "w"), -1)
 
         self._output_number += 1
 
@@ -665,7 +736,7 @@ class Zone:
 
         self._summary_data['M_gas']   = self.M_gas
         self._summary_data['M_DM']    = self.M_DM
-        self._summary_data['M_star']  = np.sum(self.all_stars.M())       
+        self._summary_data['M_star']  = np.sum(self.all_stars.M())
 
         self._summary_data['Z_gas']   = self.Z
         self._summary_data['Z_star']  = np.average( self.all_stars.Z() )
@@ -686,7 +757,6 @@ class Zone:
         self._summary_data['L_Q1'] = np.sum(self.all_stars.property_asarray('Q1') * self.all_stars.property_asarray('E1'))
 
         # now do all of the abundances
-        
         for e in self.abundances.iterkeys():
             self._summary_data[e] = self.abundances[e]
             self._summary_data[e + '_mass'] = self.species_masses[e]
@@ -743,10 +813,7 @@ class Zone:
             self._summary_data['high_mass_count'] = np.size(FUV_3)
             self._summary_data['vhigh_mass_count'] = np.size(FUV_4)
 
-            
-
-
-        return 
+        return
 
     def write_summary_output(self):
         """
@@ -775,6 +842,6 @@ class Zone:
         f.close()
 
 
- 
+
 def _my_print(string):
     print '[Zone]: ' + string
