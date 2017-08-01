@@ -257,13 +257,19 @@ class Star(StarParticle):
 
         if len(self.wind_ejecta_abundances.keys()) > 0:
 
-            if self.M_o < config.data.yields_mass_limits[1]:
-                yields =  SN_YIELD_TABLE.interpolate([self.M_o, self.Z],
-                                                      self.wind_ejecta_abundances.keys())
+            if self.M_o < config.stars.direct_collapse_mass_threshold:
+
+                if self.M_o < config.data.yields_mass_limits[1]:
+                    yields =  SN_YIELD_TABLE.interpolate([self.M_o, self.Z],
+                                                          self.wind_ejecta_abundances.keys())
+                elif config.stars.extrapolate_snII_yields:
+                    yields = np.asarray(SN_YIELD_TABLE.interpolate([config.data.yields_mass_limits[1] * _interpolation_hack, self.Z],
+                                                          self.wind_ejecta_abundances.keys()))
+                    yields = yields * self.M_o / (config.data.yields_mass_limits[1] * _interpolation_hack)
+
             else:
-                yields = np.asarray(SN_YIELD_TABLE.interpolate([config.data.yields_mass_limits[1] * _interpolation_hack, self.Z],
-                                                      self.wind_ejecta_abundances.keys()))
-                yields = yields * self.M_o / (config.data.yields_mass_limits[1] * _interpolation_hack)
+                # direct collapse supernova - no SN mass injection
+                yields = np.zeros(len(self.sn_ejecta_masses.keys()))
 
             i = 0
             for e in self.sn_ejecta_masses.iterkeys():

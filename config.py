@@ -310,6 +310,7 @@ class _star_particle_parameters(_parameters):
         self.AGB_wind_velocity             = 20.0      # km / s
 
         self.direct_collapse_mass_threshold = 25.0     # top of NuGrid data set
+        self.extrapolate_snII_yields        = False
         self.use_massive_star_yields        = True
         
 
