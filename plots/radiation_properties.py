@@ -1,14 +1,22 @@
 import numpy as np
+from matplotlib import rc
+
+fsize = 17
+rc('text', usetex=False)
+rc('font', size=fsize)#, ftype=42)
+line_width = 3
+point_size = 30
+
+
+
 import matplotlib.pyplot as plt
 
 import onezone_plot_tools as ptools
 from onezone import config as config
 
-def plot_property(name, IMF_weighted = False):
+def plot_property(name, IMF_weighted = False, xlim = None, ylim = None):
 
     s, m, z  = ptools.star_sample( (1000, 4), [1.0, 100.0], [-4, -3, -2, np.log10(0.017)])
-
-
 
     s    = np.reshape( s, (np.size(z)*np.size(m),))
     prop = [item.properties[name] for item in s]
@@ -54,36 +62,39 @@ def plot_property(name, IMF_weighted = False):
     else:
         ax.set_ylabel(name)
 
-
-
-
+    
     if name == 'E0' or name == 'E1':   
-        
-        ax.set_ylim(np.min(prop), np.max(prop))
-        ax.set_xlim(m[0], m[-1])
+        if (ylim is None): ax.set_ylim(np.min(prop), np.max(prop))
+        if (xlim is None): ax.set_xlim(m[0], m[-1])
     elif name == 'agb_phase_length':
-        ax.set_ylim(pmin, pmax)
+        if (ylim is None): ax.set_ylim(pmin, pmax)
         ax.semilogy()
-        ax.set_xlim(1.0, 8.0)
+        if (xlim is None): ax.set_xlim(1.0, 8.0)
     else:
-        ax.set_ylim(np.min(prop), np.max(prop))
-        ax.set_xlim(m[0], m[-1])
+        if (ylim is None): ax.set_ylim(np.min(prop), np.max(prop))
+        if (xlim is None): ax.set_xlim(m[0], m[-1])
 
         ax.semilogy()
+
+    if not (xlim is None):
+        ax.set_xlim(xlim)
+    if not (ylim is None):
+        ax.set_ylim(ylim)
+
     ax.minorticks_on()
     ax.legend(loc='best')
-    plt.tight_layout()
     fig.set_size_inches(8,8)
+    plt.tight_layout()
     fig.savefig(name + '.png')
     plt.close()
 
 plot_property('agb_phase_length')
-plot_property('L_FUV')
-plot_property('L_LW')
-plot_property('Q0')
-plot_property('Q1')
-plot_property('E0')
-plot_property('E1')
+plot_property('L_FUV', xlim = [1,100], ylim = [1.0E32, 1.0E39])
+plot_property('L_LW', xlim = [1,100], ylim = [1.0E32, 1.0E39])
+plot_property('Q0', xlim = [1,100], ylim = [1.0E40, 1.0E50])
+plot_property('Q1', xlim = [1,100], ylim = [1.0E40, 1.0E50])
+plot_property('E0', xlim = [1,100], ylim = [14,34])
+plot_property('E1', xlim = [1,100], ylim = [14,34])
 plot_property('luminosity')
 plot_property('lifetime')
 plot_property('age_agb')
