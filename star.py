@@ -237,14 +237,17 @@ class Star(StarParticle):
         if not config.stars.use_snIa:
             return
 
-        if len(self.wind_ejecta_abundances.keys()) > 0:
-            yields = phys.SNIa_yields(self.wind_ejecta_abundances.keys())
+        if self.M_o > config.SNIa_candidate_mass_bounds[0] and\
+           self.M_o < config.SNIa_candidate_mass_bounds[1]:
 
-            i = 0
-            for e in self.sn_ejecta_masses.iterkeys():
-                self.sn_ejecta_masses[e] = yields[i]
-                i = i + 1
+            if len(self.wind_ejecta_abundances.keys()) > 0:
+                yields = phys.SNIa_yields(self.wind_ejecta_abundances.keys())
 
+                i = 0
+                for e in self.sn_ejecta_masses.iterkeys():
+                    self.sn_ejecta_masses[e] = yields[i]
+                    i = i + 1
+        
         else:
             return NotImplementedError
 
@@ -257,7 +260,8 @@ class Star(StarParticle):
 
         if len(self.wind_ejecta_abundances.keys()) > 0:
 
-            if self.M_o < config.stars.direct_collapse_mass_threshold:
+            if self.M_o < config.stars.direct_collapse_mass_threshold and\
+               self.M_o > config.stars.SNII_mass_threshold :
 
                 if self.M_o < config.data.yields_mass_limits[1]:
                     yields =  SN_YIELD_TABLE.interpolate([self.M_o, self.Z],
