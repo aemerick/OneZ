@@ -501,7 +501,7 @@ class Star(StarParticle):
             for e in self.wind_ejecta_abundances.iterkeys():
                 self.wind_ejecta_abundances[e] /= self.properties['M_wind_total']
 
-
+        self.set_SNII_properties()
 
         self.properties['Mdot_wind'] = 0.0
         self.properties['v_wind']    = 0.0
@@ -626,6 +626,8 @@ class StarList:
 
         if name == 'mass' or name == 'Mass' or name == 'M':
             array = np.asarray( [x.M for x in _star_subset])
+        elif name == 'initial_mass' or name == 'M_o' or name == 'birth_mass':
+            array = np.asarray( [x.M_o for x in _star_subset])
         elif name == 'Z' or name == 'metallicity' or name == 'Metallicity':
             array = np.asarray( [x.Z for x in _star_subset])
         elif name == 'Mdot_ej':
