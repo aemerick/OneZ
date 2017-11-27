@@ -82,6 +82,10 @@ def plot_yields(abundances, yield_mode, fractional=False, IMF_weighted=False):
         elif yield_mode == 'SN':
             yield_out = 'SN'
 
+        ax.set_ylim(ax.get_ylim())
+        ax.plot([8.0,8.0],ax.get_ylim(), lw = 3, ls = '--', color = 'black')
+        ax.plot([25.0,25.0],ax.get_ylim(), lw = 3, ls = '-', color = 'black')
+
         fig.savefig('./yields/' + fractional_out + yield_out + '_yields_z=%.4f.png'%(z[nz]))
 
 
