@@ -237,8 +237,8 @@ class Star(StarParticle):
         if not config.stars.use_snIa:
             return
 
-        if self.M_o > config.SNIa_candidate_mass_bounds[0] and\
-           self.M_o < config.SNIa_candidate_mass_bounds[1]:
+        if self.M_o > config.stars.SNIa_candidate_mass_bounds[0] and\
+           self.M_o < config.stars.SNIa_candidate_mass_bounds[1]:
 
             if len(self.wind_ejecta_abundances.keys()) > 0:
                 yields = phys.SNIa_yields(self.wind_ejecta_abundances.keys())
