@@ -6,7 +6,7 @@ from collections import OrderedDict
 import numpy as np
 
 # --- internal ---
-
+from constants import CONST as const
 
 #
 # need to code this up as a global set in setup.py
@@ -272,14 +272,14 @@ class StellarEvolutionData(DataTable):
         for name in ['L', 'Teff', 'R', 'lifetime', 'age_agb']:
 
             self.y[name] = np.zeros(self._array_size)
-            
+
             self.y[name] = (self.y[name]).reshape( tuple(self.nbins.values()) )
 
         # now read in the data
         i = 0; j = 0
         data = np.genfromtxt(self.data_dir + 'parsec_data.in')
         for line in data:
-          
+
             for counter in [0,1,2]: # L T and R are logged - 1st 2 cols are M, Z
                 self.y[ self.y_names()[counter]  ][i][j] = 10.0**(line[counter+2])
 
@@ -290,6 +290,8 @@ class StellarEvolutionData(DataTable):
             if j >= (self.nbins.values())[1]:
                 j = 0
                 i = i + 1
+
+        self.Zsolar = const.Zsolar_parsec
 
         return None     
 
@@ -369,6 +371,8 @@ class RadiationData(DataTable):
         # flag FUV values that are off of the grid  
         self.y['FUV_flux'][ self.y['FUV_flux'] <= 0.0] = -1
         self.y['LW_flux' ][ self.y['LW_flux']  <= 0.0] = -1
+
+        self.Zsolar = const.Zsolar_ostar
 
         return None
 

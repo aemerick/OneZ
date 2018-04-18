@@ -33,7 +33,7 @@ def plot_yields(abundances, yield_mode, fractional=False, IMF_weighted=False):
         fig, ax = plt.subplots(1)
 
         ls_count = 0 ; color_count = 0
-        colors = ['black', 'blue', 'green', 'red', 'purple', 'orange']
+        colors = ['black','C0','C1','C2','C3','C4','C5','C6','C7','C8','C9']
         ls     = ['-','--','-.',':','-']
 
         for a in abundances:
@@ -65,7 +65,7 @@ def plot_yields(abundances, yield_mode, fractional=False, IMF_weighted=False):
  
         ax.set_ylabel(ylabel)
         ax.semilogy()
-        ax.set_ylim(1.0E-9, 1.0E2)
+        ax.set_ylim(1.0E-14, 1.0E2)
         ax.legend(loc='lower right', ncol=4)
         plt.tight_layout()
         fig.set_size_inches(8,8)
@@ -92,26 +92,31 @@ def plot_yields(abundances, yield_mode, fractional=False, IMF_weighted=False):
         plt.close()
 
 
-abundances = OrderedDict()
-abundances['m_tot'] = 1.0
-abundances['m_metal'] = 0.0
+if __name__ == "__main__":
 
-for a in ['H','He','C','N','O','Mg','Si','Mn','Fe','Ni','Y','Ba','Eu']:
-    abundances[a] = 0.0
+    abundances = OrderedDict()
+    abundances['m_tot']   = 1.0
+    abundances['m_metal'] = 0.0
 
-plot_yields(abundances, yield_mode = 'wind')
-plot_yields(abundances, yield_mode = 'wind', IMF_weighted=True)
+    for a in ['H','He','C','N','O','Mg','Si','Mn','Fe','Ni','Sr','Y','Ba','Eu']:
+        abundances[a] = 0.0
 
-plot_yields(abundances, yield_mode = 'SN')
-plot_yields(abundances, yield_mode = 'SN', IMF_weighted = True)
+    plot_yields(abundances, yield_mode = 'wind')
+    plot_yields(abundances, yield_mode = 'wind', fractional = True)
 
+    plot_yields(abundances, yield_mode = 'SN')
+    plot_yields(abundances, yield_mode = 'SN', fractional = True)
 
+    plot_yields(abundances, yield_mode = 'wind')
+    plot_yields(abundances, yield_mode = 'wind', IMF_weighted=True)
 
+    plot_yields(abundances, yield_mode = 'SN')
+    plot_yields(abundances, yield_mode = 'SN', IMF_weighted = True)
 
-plot_yields(abundances, yield_mode = 'wind')
-plot_yields(abundances, yield_mode = 'wind', fractional = False)
+    plot_yields(abundances, yield_mode = 'wind')
+    plot_yields(abundances, yield_mode = 'wind', fractional = False)
 
-plot_yields(abundances, yield_mode = 'SN')
-plot_yields(abundances, yield_mode = 'SN', fractional = False)
+    plot_yields(abundances, yield_mode = 'SN')
+    plot_yields(abundances, yield_mode = 'SN', fractional = False)
 
 
