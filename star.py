@@ -33,7 +33,7 @@ MASSIVE_STAR_YIELD_TABLE = DT.StellarYieldsTable('massive_star')
 
 class StarParticle:
 
-    def __init__(self, M = None, Z = None, abundances={'m_tot':1.0}, tform=0.0, id = 0):
+    def __init__(self, M = None, Z = None, abundances={'m_tot':1.0}, tform=0.0, id = 0, M_o = None):
         """
         Initialize star particle with mass and metallicity. Particle
         properties are assigned using input M and Z to interpolate
@@ -54,7 +54,10 @@ class StarParticle:
             raise ValueError("Must set values for mass and metallicity")
 
         self.M   = M
-        self.M_o = M
+        if M_o is None:
+            self.M_o = M
+        else:
+            self.M_o = M_o
         self.Z   = Z
 
         self.tform = tform
@@ -231,14 +234,23 @@ class Star(StarParticle):
         
         return None
 
-    def set_SNIa_properties(self):
+    def set_SNIa_properties(self, check_mass = False):
+        """
+        If a SNIa candidate, sets SNIa ejecta masses in array. check_mass
+        call is in place for versatility. One can set SNIa properties BEFORE turning
+        particle into remnant using check_mass = False (default), or if using this
+        code for post-processing, set check_mass = True to ensure that SNIa ejecta
+        masses are non-zero ONLY if a candidate has actually exploded.
+        """
         # need to rename and combine this and functions below
 
         if not config.stars.use_snIa:
             return
 
-        if self.M_o > config.stars.SNIa_candidate_mass_bounds[0] and\
-           self.M_o < config.stars.SNIa_candidate_mass_bounds[1]:
+        if ((self.M_o > config.stars.SNIa_candidate_mass_bounds[0] and\
+           self.M_o < config.stars.SNIa_candidate_mass_bounds[1] and (not check_mass)) or\
+          (check_mass and (self.M_o > config.stars.SNIa_candidate_mass_bounds[0] and\
+           self.M_o < config.stars.SNIa_candidate_mass_bounds[1] and self.M == 0.0))) :
 
             if len(self.wind_ejecta_abundances.keys()) > 0:
                 yields = phys.SNIa_yields(self.wind_ejecta_abundances.keys())
@@ -247,6 +259,7 @@ class Star(StarParticle):
                 for e in self.sn_ejecta_masses.iterkeys():
                     self.sn_ejecta_masses[e] = yields[i]
                     i = i + 1
+                print "------------------------", self.sn_ejecta_masses
         
         else:
             return NotImplementedError
@@ -434,7 +447,7 @@ class Star(StarParticle):
                   'lifetime'  , 'age_agb', 'L_FUV', 'L_LW',
                   'Q1', 'Q2', 'E_Q1', 'E_Q2']
 
-        L, T, R, lifetime, age_agb = SE_TABLE.interpolate([self.M,self.Z], ['L','Teff','R','lifetime','age_agb'])
+        L, T, R, lifetime, age_agb = SE_TABLE.interpolate([self.M_o,self.Z], ['L','Teff','R','lifetime','age_agb'])
         self.properties['luminosity']  = L * const.Lsun
         self.properties['Teff']        = T
         self.properties['R']           = R
