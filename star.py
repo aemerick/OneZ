@@ -287,7 +287,17 @@ class Star(StarParticle):
 
     @property
     def mechanical_luminosity(self):
-        return self.properties['Mdot_wind'] * const.Msun * self.properties['v_wind']**2
+        return 0.5 * self.properties['Mdot_wind'] * const.Msun * self.properties['v_wind']**2
+
+    @property
+    def total_wind_thermal_energy(self):
+        return 1.5 * const.k_boltz * (self.wind_ejecta_masses()['m_tot']*const.Msun)*\
+                 self.properties['Teff'] / (0.65*const.m_p)
+
+    @property
+    def total_wind_kinetic_energy(self):
+        return 0.5 * self.wind_ejecta_masses()['m_tot']*const.Msun * self.properties['v_wind']**2
+
 
     def surface_gravity(self):
         return const.G * self.M * const.Msun / self.properties['R']**2
