@@ -1,7 +1,9 @@
 import numpy as np
-import matplotlib.pyplot as plt
+from galaxy_analysis.plot.plot_styles import *
 
+import matplotlib.pyplot as plt
 import onezone_plot_tools as ptools
+
 from collections import OrderedDict
 
 from onezone import config as config
@@ -9,8 +11,8 @@ from onezone import config as config
 def plot_yields(abundances, yield_mode, fractional=False, IMF_weighted=False):
 
 
-    s, m, z  = ptools.star_sample( (200, 4), [1.0, 100.0],
-                                   [-4, -3, -2, np.log10(0.017)],
+    s, m, z  = ptools.star_sample( (1000), [1.0, 100.0],
+                                   4.3E-4, #, -4, -3, -2, np.log10(0.017)],
                                    abundances=abundances)
 
 
@@ -28,6 +30,14 @@ def plot_yields(abundances, yield_mode, fractional=False, IMF_weighted=False):
             yields[a] = np.reshape(yields[a], (np.size(z),np.size(m)))
 
 
+
+    labels = {}
+    for a in abundances:
+        labels[a] = a
+    if 'm_tot' in labels.keys():
+        labels['m_tot'] = 'Total Mass'
+    if 'm_metal' in labels.keys():
+        labels['m_metal'] = 'Total Metals'
     
     for nz in np.arange(np.size(z)):
         fig, ax = plt.subplots(1)
@@ -46,8 +56,13 @@ def plot_yields(abundances, yield_mode, fractional=False, IMF_weighted=False):
                 weights = config.zone.imf.imf(m)
                 yields[a][nz] = yields[a][nz] * weights / np.sum(weights)
 
-            ax.plot(m, yields[a][nz] / norm, ls = ls[ls_count], color = colors[color_count],
-                       label = a, lw = 3)
+            _ls = ls[ls_count]
+            if a in ['Sr','Y','Ba']:
+                _ls = '--'
+           
+
+            ax.plot(m, yields[a][nz] / norm, ls = _ls, color = colors[color_count],
+                       label = labels[a], lw = line_width)
 
             color_count = color_count + 1
             if color_count >= len(colors):
@@ -55,6 +70,7 @@ def plot_yields(abundances, yield_mode, fractional=False, IMF_weighted=False):
                 ls_count = ls_count + 1
 
         ax.set_xlabel(r'Stellar Mass (M$_{\odot}$)')
+        ax.set_xlim(0.0,25.0)
 
         if fractional:
             ylabel = r'Fractional Ejected Mass (M$_{\odot}$)'
@@ -65,8 +81,8 @@ def plot_yields(abundances, yield_mode, fractional=False, IMF_weighted=False):
  
         ax.set_ylabel(ylabel)
         ax.semilogy()
-        ax.set_ylim(1.0E-14, 1.0E2)
-        ax.legend(loc='lower right', ncol=4)
+        ax.set_ylim(1.0E-15, 1.0)
+        ax.legend(loc='upper right', ncol=3)
         plt.tight_layout()
         fig.set_size_inches(8,8)
 
@@ -83,9 +99,9 @@ def plot_yields(abundances, yield_mode, fractional=False, IMF_weighted=False):
             yield_out = 'SN'
 
         ax.set_ylim(ax.get_ylim())
-        ax.plot([8.0,8.0],ax.get_ylim(), lw = 3, ls = '--', color = 'black')
-        ax.plot([25.0,25.0],ax.get_ylim(), lw = 3, ls = '-', color = 'black')
-
+        ax.plot([8.0,8.0],ax.get_ylim(), lw = line_width, ls = '--', color = 'black')
+        ax.plot([25.0,25.0],ax.get_ylim(), lw = line_width, ls = '-', color = 'black')
+        plt.tight_layout()
         fig.savefig('./yields/' + fractional_out + yield_out + '_yields_z=%.4f.png'%(z[nz]))
 
 
@@ -98,7 +114,8 @@ if __name__ == "__main__":
     abundances['m_tot']   = 1.0
     abundances['m_metal'] = 0.0
 
-    for a in ['H','He','C','N','O','Mg','Si','Mn','Fe','Ni','Sr','Y','Ba','Eu']:
+#    for a in ['C','N','O','Na''Mg','Si','S','Ca','Mn','Fe','Ni','As','Sr','Y','Ba']:
+    for a in ['C','N','O','Mg','S','Sr','Y','Ba']:
         abundances[a] = 0.0
 
     plot_yields(abundances, yield_mode = 'wind')
