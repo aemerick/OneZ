@@ -119,6 +119,7 @@ class constants:
         self.tau_sun = 10.0E9 * 3.1536E7 # solar lifetime in cgs
         self.E_HI    = 13.6 # eV
         self.E_HeI   = 24.587
+        self.m_p     = 1.6726219E-24
 
         self.Zsolar_ostar  = 0.01700 # Grevesse & Sauval 1998 - used in OSTAR2002
         self.Zsolar_parsec = 0.01524     # Caffau et. al. 2009 / 2011 - used in PARSEC SE code
