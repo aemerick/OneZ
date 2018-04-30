@@ -10,8 +10,8 @@ from constants import CONST as const
 
 #
 # need to code this up as a global set in setup.py
-#
-install_dir = '/home/aemerick/code/onezone/'
+# 
+install_dir = '/mnt/xfs1/home/emerick/code/onezone/'
 
 class DataTable:
 
