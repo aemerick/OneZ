@@ -737,6 +737,7 @@ class Zone:
         self._summary_data['M_gas']   = self.M_gas
         self._summary_data['M_DM']    = self.M_DM
         self._summary_data['M_star']  = np.sum(self.all_stars.M())
+        self._summary_data['M_star_o'] = np.sum( self.all_stars.M_o())
 
         self._summary_data['Z_gas']   = self.Z
         self._summary_data['Z_star']  = np.average( self.all_stars.Z() )
@@ -765,10 +766,10 @@ class Zone:
             self._summary_data[key] = self.special_mass_accumulator[key]
 
         if config.io.radiation_binned_output:
-            condition_1 = {'mass': lambda x : (x.M >= 1.0)  * (x.M < 8.0) *  (x.properties['type'] == 'star')} 
-            condition_2 = {'mass': lambda x : (x.M >= 8.0)  * (x.M < 16.0) * (x.properties['type'] == 'star')}
-            condition_3 = {'mass': lambda x : (x.M >= 16.0) * (x.M < 24.0) * (x.properties['type'] == 'star')}
-            condition_4 = {'mass': lambda x : (x.M >= 24.0) * (x.M < 1000.0) * (x.properties['type'] == 'star')}
+            condition_1 = {'mass': lambda x : (x.M_o >= 1.0)  * (x.M_o < 8.0) *  (x.properties['type'] == 'star')} 
+            condition_2 = {'mass': lambda x : (x.M_o >= 8.0)  * (x.M_o < 16.0) * (x.properties['type'] == 'star')}
+            condition_3 = {'mass': lambda x : (x.M_o >= 16.0) * (x.M_o < 24.0) * (x.properties['type'] == 'star')}
+            condition_4 = {'mass': lambda x : (x.M_o >= 24.0) * (x.M_o < 1000.0) * (x.properties['type'] == 'star')}
 
             self._summary_data['low_mass_LQ0']   = np.sum(self.all_stars.property_asarray('Q0', subset_condition = condition_1) *\
                                                           self.all_stars.property_asarray('E0', subset_condition = condition_1))
