@@ -3,7 +3,7 @@ import numpy as np
 
 class IMF(object):
 
-    def __init__(self, M_min = 1.0 , M_max = 120.0):
+    def __init__(self, M_min = 1.0 , M_max = 100.0):
 
         self._M_min = M_min
         self._M_max = M_max # min and max M of IMF
