@@ -259,7 +259,7 @@ class Star(StarParticle):
                 for e in self.sn_ejecta_masses.iterkeys():
                     self.sn_ejecta_masses[e] = yields[i]
                     i = i + 1
-                print "------------------------", self.sn_ejecta_masses
+                #print "------------------------", self.sn_ejecta_masses
         
         else:
             return NotImplementedError
@@ -766,7 +766,13 @@ class StarList:
         List comprehension to return all masses as np array
         """
         return np.asarray([x.M for x in self.stars_iterable])
-    
+
+    def M_o(self):
+        """
+        Return all initial masses of stars as np array
+        """
+
+        return np.asarray([x.M_o for x in self.stars_iterable])
 
 
 def _my_print(string):
