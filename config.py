@@ -217,6 +217,8 @@ class _zone_parameters(_parameters):
         self._maximum_stars      = None
         self.optimize            = True
 
+        self.constant_metallicity = False               # Use fixed Z for gas
+
         # assert time units here
 
     @property
