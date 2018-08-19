@@ -285,7 +285,10 @@ class Zone:
         return z
 
     def _update_metallicity(self):
- 
+
+        if config.zone.constant_metallicity:
+            return
+
         self.Z = self.species_masses['m_metal'] / self.M_gas
 
         return
