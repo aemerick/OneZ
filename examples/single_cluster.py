@@ -33,7 +33,7 @@ config.zone.species_to_track = ['m_tot', 'm_metal', 'H', 'He', 'C', 'N', 'O', 'M
 # I/o spacing for full dumps (pickles) and summary output
 # in Myr
 #
-config.io.dt_dump            = 7000.0
+config.io.dt_dump            = 14000.0
 config.io.dt_summary         = 10
 config.io.cycle_dump         = 0
 config.io.cycle_summary      = 0
@@ -50,12 +50,12 @@ config.zone.timestep_safety_factor = 32
 #
 config.zone.initial_gas_mass         = 2.0E6
 config.zone.initial_metallicity      = 0.0001 # lowest posssible metallicity value
-config.zone.initial_stellar_mass     = 2.0E5
+config.zone.initial_stellar_mass     = 8.0E5 * 2.5   ### 2.0E5
 
 #
 # Set up IMF 
 #
-config.zone.imf = imf.salpeter(M_min = 1.0, M_max = 120.0, alpha = 1.35)
+config.zone.imf = imf.salpeter(M_min = 1.0, M_max = 100.0, alpha = 1.35)
 
 #
 # Include any inflow or outflow.
