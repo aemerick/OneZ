@@ -2,9 +2,9 @@ from galaxy_analysis.plot.plot_styles import *
 import numpy as np
 import matplotlib.pyplot as plt
 import sys, glob
+from scipy.integrate import cumtrapz
 
-
-def compute_property(fpath, property, ylabel = None, integrate = False, normalize = None):
+def compute_property(fpath, property, integrate = False, normalize = None):
 
     # load file to get names
     files = np.sort(glob.glob(fpath + 'run????_summary_output.txt'))
@@ -18,36 +18,50 @@ def compute_property(fpath, property, ylabel = None, integrate = False, normaliz
     npoints  = np.size(sample_times)
     all_data = np.zeros( (nfiles, npoints) )
 
-    norm = 1.0
-    if not (normalize is None):
-        norm = normalize
-
 
     for i in np.arange(nfiles):
+
         temp = np.genfromtxt(files[i], names = True)
-        x    = temp['t']
+
+        select = temp['M_star_o'] > 0
+
+        x    = temp['t'][select] - np.min(temp['t'][select])
+
+        # renormalize time
+#        x    = x - np.min(x[M_s>0])
+
+        norm = 1.0
+        if not (normalize is None):
+            if normalize == 'M_o':
+                norm = 1.0 / temp['M_star_o'][select]
+            else:
+                norm = normalize
 
         if 'L_' in property:
             y = temp['int_mass_' + property.replace('_','')] +\
                 temp['high_mass_' + property.replace('_','')] +\
                 temp['vhigh_mass_' + property.replace('_','')]
+            y = y[select]
         else:
-            y    = temp[property]
+            y    = temp[property][select]
 
         newy = np.interp( sample_times, x, y)
+        if np.size(norm) > 1:
+            norm = np.interp(sample_times, x, norm)
 
         all_data[i] = newy
         x           = 1.0 * sample_times
 
         if integrate:
-            temp_data = np.zeros(npoints)
-            for j in np.arange(1,npoints):
-                temp_data[j] = np.trapz( [all_data[i][j-1],all_data[i][j]], [x[j-1], x[j]]) + temp_data[j-1]
-            all_data[i] = temp_data*1.0
+#            temp_data = np.zeros(npoints)
+#            for j in np.arange(1,npoints):
+#                temp_data[j] = np.trapz( [all_data[i][j-1],all_data[i][j]], [x[j-1], x[j]]) + temp_data[j-1]
+            all_data[i][:-1] = cumtrapz( all_data[i], x = x)
+            all_data[i][-1] = all_data[i][-2]
 
         all_data[i] = all_data[i] * norm
 
-
+    stats = {}
     stats['median'] = np.median(all_data, axis = 0)
     stats['q1']     = np.percentile(all_data, 25, axis = 0)
     stats['q3']     = np.percentile(all_data, 75, axis = 0)
