@@ -199,7 +199,10 @@ class _zone_parameters(_parameters):
         self.stochastic_sample_mass       = 200.0
 
         # - inflow, outflow, and efficiency parameters
-        self.mass_outflow_method      = 0    # 1 is use below, 2 is read from file
+        self.mass_outflow_method      = 0               # 1 is use below, 2 is read from file
+                                                        # 3: use mass loading factor for total, H, and He
+                                                        #    otherwise, use constant fraction of production (read from file)
+                                                        #
         self.inflow_factor            = 1.03            # ratio of inflow to outflow
         self.mass_loading_factor      = 15.7            # constant if non-cosmological
                                                         # value at z = 0 if cosmological
