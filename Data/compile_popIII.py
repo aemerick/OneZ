@@ -48,7 +48,10 @@ def generate_nomoto(filepath = './nomoto_latex_table.dat'):
 
 
 def generate_heger(filepath = './heger_yields.dat'):
+    """
+    Heger & Woosley 2002 - Table 3
 
+    """
 # anum element 65 70 75 80 85 90 95 100 105 110 115 120 125 130
     raw_heger_yields = np.genfromtxt('heger_latex_table.dat',
                                      delimiter = '&', names = True,
@@ -61,7 +64,7 @@ def generate_heger(filepath = './heger_yields.dat'):
     j = 0
     for i in np.arange(np.size(heger_e)):
         for j in np.arange(np.size( raw_heger_yields['element'])):
-            if raw_heger_yields['element'][j] == heger_e[i]:
+            if str(raw_heger_yields['element'][j]).strip() == heger_e[i]:
                 heger_yields[i] += np.array(list(raw_heger_yields[j])[2:])
 
     # get atomic numbers
