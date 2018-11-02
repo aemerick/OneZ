@@ -58,7 +58,10 @@ def generate_heger(filepath = './heger_yields.dat'):
                                      dtype = "i2,|U4,f8,f8,f8,f8,f8,f8,f8,f8,f8,f8,f8,f8,f8,f8")
 
     heger_e      = [str(x).strip() for x in np.unique(raw_heger_yields['element'])]
-    masses       = np.array([float(y) for y in raw_heger_yields.dtype.names[2:]])
+    He_masses    = np.array([float(y) for y in raw_heger_yields.dtype.names[2:]])
+
+    # table gives He core masses - Eq 1 in Heger&Woosley2002
+    masses       = He_masses*(24.0/13.0) + 20.0
     heger_yields = np.zeros( (np.size(heger_e),np.size(masses)))
 
     j = 0
