@@ -2,9 +2,11 @@ __author__ = "aemerick <emerick@astro.columbia.edu>"
 
 import numpy as np
 
+from collections import OrderedDict
+
 def _make_conversion_dictionaries():
 
-    x = {}
+    x = OrderedDict()
 
     elements = ['H','He', 'Li', 'Be', 'B','C','N','O','F',
                 'Ne','Na','Mg','Al','Si','P','S',
