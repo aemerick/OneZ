@@ -42,7 +42,7 @@ def normalize_abundance_ratio(x1, x2, input_type = 'abundance'):
     x1_solar = const.CONST.solar_abundance[x1[0]]
     x2_solar = const.CONST.solar_abundance[x2[0]]
 
-    aratio = np.log10(x1_abund / x2_abund) - np.log10( x1_solar / x2_solar)
+    aratio = np.log10(x1_abund / x2_abund) - (x1_solar - x2_solar) # np.log10( x1_solar / x2_solar)
 
     return aratio
 
