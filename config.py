@@ -8,6 +8,8 @@ import numpy as np
 from constants import CONST as const
 import imf as imf
 
+import os
+
 #
 # --------- Superclass for all parameters -------
 #
@@ -43,7 +45,7 @@ class _units(_parameters):
         Set the conversions between code units and 'base'
         quantities. For the sake of the onezone code,
         the base unit of time is in seconds and the base unit
-        of mass is in solar masses. Therefore, in order to 
+        of mass is in solar masses. Therefore, in order to
         set the time units to Myr (default) and mass units
         to solar masses (default), one would just do:
 
@@ -51,7 +53,7 @@ class _units(_parameters):
             >>> units.mass = 1.0
 
         Output masses are always in solar, while everything else (e.g.
-        luminosity) is in cgs, regardless of what the code units are 
+        luminosity) is in cgs, regardless of what the code units are
         set to.
     """
 
@@ -71,22 +73,22 @@ class _units(_parameters):
 #        self.omega_lambda = 0.742 # WMAP 5 year
         self.H_o          = 69.32 # km / s / Mpc
 
-        
+
 
         return
-    
+
     def H_a(self, a):
         H = self.H_o * np.sqrt((self.omega_v + self.omega_m*a**(-3) +\
                             self.omega_r*a**(-4) - (self.omega-1.0)*a**(-2)))
         return H
-        
+
     def hubble_time(self, z):
         a = 1.0 / (1.0 + z)
         return (1.0 / (self.H_a(a) * (const.km) / (const.Mpc))) / (self.time)
 
 units = _units()
 #
-# -------- Global Zone Parameters ------- 
+# -------- Global Zone Parameters -------
 #
 class _zone_parameters(_parameters):
     """
@@ -104,7 +106,7 @@ class _zone_parameters(_parameters):
         initial_metallicity (float)      : initial gas metal fraction
         dt (float)                       : constant timestep size in code time
         t_final (float)                  : time to end simulation
-        
+
 
         Suggested Parameters:
 
@@ -119,17 +121,17 @@ class _zone_parameters(_parameters):
             1) constant, uniform SFR throughout evolution
             2) SFR computed based on gas mass and input SFR rate efficiency (cosmological)
             3) SFH table provided using SFH_filename parameter where
-               either two columns are provided, time and SFR, or 
+               either two columns are provided, time and SFR, or
                time and stellar mass. Column headers must be named
                appropriately as ("time" or "SFR" or "mass").
 
          use_SF_mass_reservoir (bool , optional) : One of two ways to deal with low
              SFR's to ensure accurate sampling of the IMF (see the second
              below). Make sure you understand these parameters and their
-             implications before setting -- know also that they may need to 
+             implications before setting -- know also that they may need to
              be set in certain situations. This parameter turns on the
-             reservoir method whereby M_sf = dt * SFR is added to a 
-             reservoir each timestep. If the reservoir exceeds the 
+             reservoir method whereby M_sf = dt * SFR is added to a
+             reservoir each timestep. If the reservoir exceeds the
              mass threshold ``SF_mass_reservoir_size'', SF occurs in that timestep
              using up all of the reservoir. This may lead to bursty, intermittent SF
              depnding on size of resivoir. Default = False
@@ -151,21 +153,21 @@ class _zone_parameters(_parameters):
              a value. Not recommended to set below ~200.0 Msun depending
              on one's choice of maximum star particle mass. Default is 250.0.
 
-         inflow_factor  (float, optional) : Sets the mass inflow rate as a function of 
+         inflow_factor  (float, optional) : Sets the mass inflow rate as a function of
              the star formation rate. Default 0.05
 
          mass_loading_factor (float, optional) : Sets the mass outlflow rate as a function of
              the star formation rate. Default 0.1
 
-         SFR_efficiency (float, optional) : For cosmologically derived SFR's, sets the 
+         SFR_efficiency (float, optional) : For cosmologically derived SFR's, sets the
              star formation rate efficiency of converging gas to stars in a free fall time
              Default is 0.01
 
          Optional:
-        
+
          t_o     (float, optional) : initial time. Default is 0.0
          t_final (float, optional) : simulation end time. Default is 10 Gyr
-         
+
     """
 
     def __init__(self):
@@ -240,7 +242,7 @@ class _zone_parameters(_parameters):
     @property
     def M_min(self):
         return self.__M_min
-    
+
     @property
     def M_max(self):
         return self.__M_max
@@ -253,7 +255,7 @@ class _zone_parameters(_parameters):
     def M_min(self, value):
         self.__M_min = value
         self.imf.M_min = self.__M_min
-        return 
+        return
 
     @M_max.setter
     def M_max(self, value):
@@ -267,7 +269,7 @@ class _zone_parameters(_parameters):
         self.imf.alpha = self.__alpha
         return
 
-    
+
 zone = _zone_parameters()
 
 #
@@ -277,7 +279,7 @@ class _star_particle_parameters(_parameters):
     """
     Star and Stellar Physics Parameters:
 
-        The below is a list of all parameters that are set to be 
+        The below is a list of all parameters that are set to be
         used in evolving stars and controlling the underlying stellar
         physics properties.
 
@@ -291,7 +293,7 @@ class _star_particle_parameters(_parameters):
             Type 1a. Default [3.0, 8.0]
 
         DTD_slope (float) : Slope of the delay time distribution (DTD)
-            model used to compute probability of SNIa candidates 
+            model used to compute probability of SNIa candidates
             exploding as SNIa in a given timestep. Slope is beta,
             where probability goes as t^(-beta). Default 1.0
 
@@ -301,7 +303,7 @@ class _star_particle_parameters(_parameters):
     """
 
     def __init__(self):
-    
+
         self.SNII_mass_threshold           = 8.0
         self.SNIa_candidate_mass_bounds    = [3.0, 8.0]
 
@@ -319,7 +321,7 @@ class _star_particle_parameters(_parameters):
         self.direct_collapse_mass_threshold = 25.0     # top of NuGrid data set
         self.extrapolate_snII_yields        = False
         self.use_massive_star_yields        = True
-        
+
 
         self.normalize_black_body_to_OSTAR = True
         self.black_body_correction_mass    = 20.0
@@ -340,11 +342,53 @@ class _io_parameters(_parameters):
         self.dt_dump                  = 0.0
         self.cycle_dump               = 0
 
-        self.summary_output_filename  = 'summary_output.txt' 
+        self.pickle_output_basename   = 'pickle'
+        self.dt_pickle                = 0
+        self.cycle_pickle             = 0
+
+        self.summary_output_filename  = 'summary_output.txt'
         self.dt_summary               = 0.0
         self.cycle_summary            = 0
 
+        self._abundance_output_filename = None # 'abundances.dat'
+
         self.radiation_binned_output  = 0 # bin rad in mass bins - expensive
+
+
+    @property
+    def abundance_output_filename(self):
+        return self._abundance_output_filename
+
+    @abundance_output_filename.setter
+    def abundance_output_filename(self, value):
+        self._abundance_output_filename = value
+
+        self._initialize_abundance_output()
+
+        return
+
+    def _clean_up(self):
+
+        self._abundance_output_file.close()
+
+        return
+
+    def _initialize_abundance_output(self):
+
+        if self._abundance_output_filename is None:
+            return
+
+        elif os.path.isfile(self._abundance_output_filename):
+            self._abundance_output_file = open(self._abundance_output_filename,'a')
+        else:
+            self._abundance_output_file = open(self._abundance_output_filename,'w')
+
+            self._abundance_output_file.write("# t id M Z lifetime")
+            for e in zone.species_to_track:
+                self._abundance_output_file.write(" " + (e))
+            self._abundance_output_file.write("\n")
+
+        return
 
 io  = _io_parameters()
 
@@ -367,18 +411,18 @@ def information():
     Welcome to the configuration parameters for the onezone
     chemical enrichment model. Parameters are classified by
     whether or not they belong to the more global onezone gas
-    reservoir, the stars (and stellar physics) itself, or 
+    reservoir, the stars (and stellar physics) itself, or
     input/output. The parameters can be accessed and modified
     as attributes of the following objects:
- 
+
         Zone            :    zone
         Stars           :    stars
         Input / Output  :    io
-        
+
     More information about these parameters can be found by
     calling the help method on a given object, e.g.:
          zone.help()
-    which will print an explanation about each parameter, whether or 
+    which will print an explanation about each parameter, whether or
     not it requires user to set (i.e. will fail if defaults are kept),
     and its default value.
 

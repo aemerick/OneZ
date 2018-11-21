@@ -33,7 +33,8 @@ MASSIVE_STAR_YIELD_TABLE = DT.StellarYieldsTable('massive_star')
 
 class StarParticle:
 
-    def __init__(self, M = None, Z = None, abundances={'m_tot':1.0}, tform=0.0, id = 0, M_o = None):
+    def __init__(self, M = None, Z = None, abundances={'m_tot':1.0}, tform=0.0, id = 0, M_o = None,
+                      age = None, t_now = None):
         """
         Initialize star particle with mass and metallicity. Particle
         properties are assigned using input M and Z to interpolate
@@ -63,17 +64,32 @@ class StarParticle:
         self.tform = tform
         self.id    = id
 
+        if age is None and t_now is None:
+            self.age = 0.0
+
+        elif age is None:
+            self.age = t_now - self.tform
+
+        else:
+            self.age = age
+
+            if (t_now - self.age) != self.tform:
+                print "Supplied Particle age and formation time do not agree with current time"
+
+            self.tform = t_now - self.age
+
         self.properties = {}
 
         self.wind_ejecta_abundances = OrderedDict()
         self.sn_ejecta_masses   = OrderedDict()
 
-        if not abundances == None:
-
+        if not abundances is None:
             for e in abundances.iterkeys():
                 self.wind_ejecta_abundances[e] = 0.0
                 self.sn_ejecta_masses[e]  = 0.0
 
+
+        return
 
     def evolve(self, t, dt, ej_masses = {}, sn_masses = {},
                             snII_counter = -9999, snIa_counter = -9999,
@@ -86,9 +102,12 @@ class StarParticle:
         """
         pass
 
+#
+# Star_types: 'star', 'new_WD'
+#
 
 class Star(StarParticle):
-        
+
     def __init__(self, star_type = 'star', *args, **kwargs):
 
         StarParticle.__init__(self, *args, **kwargs)
@@ -97,25 +116,31 @@ class Star(StarParticle):
 
         self._assign_properties()
 
+        if 'abundances' in kwargs:
+            self.write_abundance(kwargs['abundances'])
+
+        return
+
+
     def evolve(self, t, dt, ej_masses = {}, sn_masses = {},
                             snII_counter = -9999, snIa_counter = -9999,
                             special_accumulator={}):
         """
-        Evolve 
+        Evolve
         """
 
-        age = t - self.tform
+        self.age = t - self.tform
 
         #
         # check and update Mdot_ej from stellar winds
         #
         self.Mdot_ej = 0.0
-        self.stellar_wind_parameters(age, dt)
+        self.stellar_wind_parameters(self.age, dt)
         self.Mdot_ej = self.properties['Mdot_wind']
 
         SN_mass_loss = 0.0
 
-        if (age + dt > self.properties['lifetime'] / (config.units.time)):
+        if (self.age + dt > self.properties['lifetime'] / (config.units.time)):
 
             if 'new' in self.properties['type']:
                 #
@@ -164,7 +189,7 @@ class Star(StarParticle):
                     #
                     self.properties['type'] = 'new_direct_collapse'
 
-            # if this is a WD, need to check and see if it will explode            
+            # if this is a WD, need to check and see if it will explode
             if self.properties['type'] == 'WD':
 
                 if self.properties['SNIa_candidate']:
@@ -181,13 +206,13 @@ class Star(StarParticle):
         # Compute total mass lost through supernova and wind
         #
         M_loss = self.Mdot_ej * (config.units.time) * dt + SN_mass_loss
-        
+
         self.M = self.M - M_loss
 
         if self.M < 0.0 and not 'SNIa' in self.properties['type']:
             _my_print("ERROR IN STAR: Negative stellar mass in particle type " + self.properties['type'])
-            _my_print("birth mass, mass, mdot_ej, mdot_ej*dt, sn_mass_loss, M_loss, age")
-            _my_print("%3.3E %3.3E %3.3E %3.3E %3.3E %3.3E %3.3E"%(self.M_o, self.M, self.Mdot_ej, self.Mdot_ej*dt, SN_mass_loss, M_loss, age))
+            _my_print("birth mass, mass, mdot_ej, mdot_ej*dt, sn_mass_loss, M_loss, self.age")
+            _my_print("%3.3E %3.3E %3.3E %3.3E %3.3E %3.3E %3.3E"%(self.M_o, self.M, self.Mdot_ej, self.Mdot_ej*dt, SN_mass_loss, M_loss, self.age))
             _my_print(self.properties)
             _my_print("time, dt")
             _my_print("%3.3E %3.3E"%(t, dt))
@@ -199,10 +224,10 @@ class Star(StarParticle):
             self.M = phys.white_dwarf_mass(self.M_o)
 
         #
-        # add in ejected mass for 
+        # add in ejected mass for
         #   1) winds
         #   2) SN explosion
-        # 
+        #
         if self.properties['type'] == 'star' or\
            self.properties['type'] == 'new_WD':
 
@@ -213,7 +238,7 @@ class Star(StarParticle):
                 special_accumulator['m_massive'] += self.wind_ejecta_abundances['m_metal'] * self.Mdot_ej
 
         elif self.properties['type'] == 'new_remnant':
-            # sn may have both winds and SN ejecta if explosion 
+            # sn may have both winds and SN ejecta if explosion
             # happens between timesteps (almost always)
             for key in ej_masses.iterkeys():
                 ej_masses[key] += self.wind_ejecta_abundances[key] * self.Mdot_ej
@@ -230,8 +255,8 @@ class Star(StarParticle):
 
             if self.M_o > config.zone.track_massive_star_ejecta_mass:
                 special_accumulator['m_massive'] += self.sn_ejecta_masses['m_metal']
-            
-        
+
+
         return None
 
     def set_SNIa_properties(self, check_mass = False):
@@ -260,7 +285,7 @@ class Star(StarParticle):
                     self.sn_ejecta_masses[e] = yields[i]
                     i = i + 1
                 #print "------------------------", self.sn_ejecta_masses
-        
+
         else:
             return NotImplementedError
 
@@ -369,12 +394,12 @@ class Star(StarParticle):
             do_wind = True
 
             if (self.M_o < config.stars.AGB_wind_phase_mass_threshold) and config.stars.use_AGB_wind_phase:
-                if age + dt < self.properties['age_agb'] / config.units.time:
+                if self.age + dt < self.properties['self.age_agb'] / config.units.time:
                     do_wind = False
                     wind_lifetime = 0.0
                 else:
-                    wind_lifetime = (self.properties['lifetime'] - self.properties['age_agb'])
-             
+                    wind_lifetime = (self.properties['lifetime'] - self.properties['self.age_agb'])
+
             else: # else have star wind on for entire lifetime
                 wind_lifetime = self.properties['lifetime']
 
@@ -383,7 +408,7 @@ class Star(StarParticle):
                 wind_lifetime = dt * config.units.time
 
 
-            if do_wind and age * config.units.time < self.properties['lifetime']:
+            if do_wind and self.age * config.units.time < self.properties['lifetime']:
                 Mdot   = self.properties['M_wind_total'] / wind_lifetime
             else:
                 Mdot   = 0.0
@@ -395,7 +420,7 @@ class Star(StarParticle):
             #
             final_mass = self.M - Mdot * dt * config.units.time
             correct_final_mass = self.M_o - self.properties['M_wind_total']
-            
+
 
             if final_mass < correct_final_mass:
                 Mdot = (self.M - correct_final_mass) / wind_lifetime
@@ -425,7 +450,7 @@ class Star(StarParticle):
         then extrapolation from the NuGrid table is used (which is very wrong).
 
         Returns:
-            numpy array of total yields over lifetime for each element, sorted in 
+            numpy array of total yields over lifetime for each element, sorted in
             atomic number order
         """
 
@@ -439,10 +464,10 @@ class Star(StarParticle):
             yields = np.asarray(MASSIVE_STAR_YIELD_TABLE.interpolate([self.M_o, self.Z],
                                                                      self.wind_ejecta_abundances.keys()))
 
-        else: 
+        else:
             #
             # For stars off of the grid, scale most massive star
-            # to current mass. 
+            # to current mass.
             #
             yields = np.asarray(WIND_YIELD_TABLE.interpolate([config.data.yields_mass_limits[1]*_interpolation_hack, self.Z], self.wind_ejecta_abundances.keys()))
             yields = yields * self.M_o / (config.data.yields_mass_limits[1] * _interpolation_hack)
@@ -454,22 +479,22 @@ class Star(StarParticle):
     def _assign_properties(self):
 
         p_list = ['luminosity', 'radius',
-                  'lifetime'  , 'age_agb', 'L_FUV', 'L_LW',
+                  'lifetime'  , 'self.age_agb', 'L_FUV', 'L_LW',
                   'Q1', 'Q2', 'E_Q1', 'E_Q2']
 
-        L, T, R, lifetime, age_agb = SE_TABLE.interpolate([self.M_o,self.Z], ['L','Teff','R','lifetime','age_agb'])
+        L, T, R, lifetime, self.age_agb = SE_TABLE.interpolate([self.M_o,self.Z], ['L','Teff','R','lifetime','age_agb'])
         self.properties['luminosity']  = L * const.Lsun
         self.properties['Teff']        = T
         self.properties['R']           = R
         self.properties['lifetime']    = lifetime
-        self.properties['age_agb']     = age_agb
-        self.properties['agb_phase_length']  = lifetime - age_agb	
+        self.properties['self.age_agb']     = self.age_agb
+        self.properties['agb_phase_length']  = lifetime - self.age_agb
 
 
         Q0, Q1, FUV, LW = RAD_TABLE.interpolate([self.properties['Teff'],
                                              self.surface_gravity(),
                                              self.Z], ['q0','q1','FUV_flux', 'LW_flux'])
-        
+
         E0  = rad.average_energy(const.E_HI/ const.eV_erg, self.properties['Teff'])
         E1  = rad.average_energy(const.E_HeI/const.eV_erg, self.properties['Teff'])
 
@@ -497,7 +522,7 @@ class Star(StarParticle):
                 FUV *= config.stars.black_body_FUV_factors[corr_ind]
                 LW  *= config.stars.black_body_LW_factors[corr_ind]
 
-    
+
         self.properties['Q0']    = Q0 * self.surface_area()
         self.properties['E0']    = E0
         self.properties['Q1']    = Q1 * self.surface_area()
@@ -512,8 +537,8 @@ class Star(StarParticle):
         #
 
         yields = self.compute_stellar_wind_yields()
-        
-        i = 0 
+
+        i = 0
         for e in self.wind_ejecta_abundances.iterkeys():
             self.wind_ejecta_abundances[e] = yields[i]
             i = i + 1
@@ -544,6 +569,17 @@ class Star(StarParticle):
 
         return self.sn_ejecta_masses
 
+    def write_abundance(self, abundances):
+
+        if not (config.io._abundance_output_filename is None):
+
+            config.io._abundance_output_file.write("%6.6E %5i %6.6E %6.6E %6.6E"%(self.tform,self.id,self.M,self.Z,self.properties['lifetime']))
+            for e in config.zone.species_to_track:
+                config.io._abundance_output_file.write(" %6.6E"%(abundances[e]))
+            config.io._abundance_output_file.write("\n")
+
+        return
+
 class StarList:
     """
     List of star objects with useful functions to handle operating
@@ -573,7 +609,13 @@ class StarList:
 
     def evolve(self, t, dt, *args, **kwargs):
 
-        map( lambda x : x.evolve(t, dt, *args, **kwargs), self.stars_iterable)
+        #map( lambda x : x.evolve(t, dt, *args, **kwargs), self.stars_iterable)
+#        Was debating trying to multi-thread here but that might not do anything
+#        if config.multiprocess:
+#
+#        else:
+        for x in self.stars_iterable:
+            x.evolve(t,dt,*args,**kwargs)
 
         return
 
@@ -626,6 +668,7 @@ class StarList:
         return
 
 
+
     def _append(self, new_star):
         # apparently a possible bug in appending objects to list with gc
         gc.disable()
@@ -659,11 +702,13 @@ class StarList:
             array = np.asarray( [x.mechanical_luminosity for x in _star_subset])
         elif name == 'id':
             array = np.asarray( [x.id for x in _star_subset])
+        elif name == 'age':
+            array = np.asarray( [x.age for x in _star_subset])
         else:
             try:
                 array = np.asarray( [x.properties[name] for x in _star_subset] )
             except KeyError:
-                _my_print( name, "star property or value not understood for " + star_type + " stars")
+                _my_print( name + " star property or value not understood for " + star_type + " stars")
                 raise KeyError
 
         #
@@ -673,7 +718,7 @@ class StarList:
             if name == 'type':
                 return [None]
             else:
-                return np.zeros(1) 
+                return np.zeros(1)
         else:
             return array
 
@@ -691,7 +736,7 @@ class StarList:
         unique_keys = np.unique([item for sublist in all_keys for item in sublist])
 
         if mode == 'unique':   # get all unique keys from all stars in set
-            return unique_keys 
+            return unique_keys
         elif mode == 'shared': # get only properties shared among all stars in set
             i = 0
             return np.unique([element for element in unique_keys if element in all_keys[i] for i in np.arange(0,len(all_keys))])
@@ -723,7 +768,7 @@ class StarList:
         """
         Return either the ejecta rates or chemical tags for stars as array
         """
-        
+
         if not star_type == 'all':
             _star_subset = self.get_subset( lambda x : x.properties['type'] != star_type )
         else:
@@ -736,13 +781,13 @@ class StarList:
                 name = name.replace('Mdot_','')
 
             func = lambda x , y : x.wind_ejecta_abundances[y]
-    
+
         elif 'SN' in name:
             if 'ej' in name:
                 name = name.replace('SN_ej_','')
             else:
                 name = name.replace('SN_','')
- 
+
             func = lambda x, y : x.sn_ejecta_masses[y]
 
         else:

@@ -1,8 +1,8 @@
 """
-   
+
     Author : A. Emerick
     Date   : May 2016
-    
+
     Purpose:
 
 """
@@ -12,8 +12,9 @@ __author__ = "aemerick <emerick@astro.columbia.edu>"
 # external
 import numpy as np
 from collections import OrderedDict
-import os
+import os, h5py
 from scipy.interpolate import interp1d
+
 
 try:
     import dill as pickle
@@ -47,21 +48,21 @@ class Zone:
     """
     Zone Class
 
-    Single zone gas reservoir attached to star formation and 
+    Single zone gas reservoir attached to star formation and
     chemical enrichment models. Parameters for a given simulation
     can be set using config. Zone initializes a simulation using
-    initial conditions parameters set in config. 
+    initial conditions parameters set in config.
 
-    Once initialized and abundances are set, simulation can be 
+    Once initialized and abundances are set, simulation can be
     evolved:
         >>> sim = Zone()
         >>> sim.set_initial_abundances(list_of_element_names)
         >>> sim.evolve()
- 
+
     I/O controlled by config parameters, but can be done manually
     with a full (pickle) dump or an output of summary statistics:
 
-        >>> sim.write_full_dump()
+        >>> sim.write_full_pickle()
         >>> sim.write_summary_output()
     """
 
@@ -88,11 +89,13 @@ class Zone:
         #
         self._t_last_dump           = 0.0
         self._t_last_summary        = 0.0
+        self._t_last_pickle         = 0.0
         self._cycle_number          = 0
         self._cycle_last_dump       = 0
         self._cycle_last_summary    = 0
-        self._output_number         = 0
+        self.pickle_output_number   = 0
         self._summary_output_number = 0
+        self._output_number         = 0
 
         self.t  = config.zone.t_o
         self.dt = config.zone.dt
@@ -108,7 +111,7 @@ class Zone:
         self.N_SNIa = 0
         self.N_SNII = 0
 
-        # 
+        #
         # Create stars if starting with initial cluster
         #
         for e in config.zone.species_to_track:
@@ -126,9 +129,9 @@ class Zone:
 
     def set_initial_abundances(self, elements, abundances = None):
         """
-        Set initial abundances using a list of desired elements and 
+        Set initial abundances using a list of desired elements and
         associated abundances. If no abundances are provided, all are
-        set to zero except H and He. Abundances dict does not have to be 
+        set to zero except H and He. Abundances dict does not have to be
         complete
         """
         self.initial_abundances = OrderedDict()
@@ -197,7 +200,7 @@ class Zone:
             #
             # I) Evolve stars, computing ejecta rates and abundances
             #
- 
+
             self._evolve_stars()
 
             #
@@ -263,10 +266,19 @@ class Zone:
 
 
         #
-        # At end of simulation, force summary and dump 
+        # At end of simulation, force summary and dump
         # outputs
         #
         self._check_output(force=True)
+        self._clean_up()
+
+        return
+
+    def _clean_up(self):
+        # delete / close things that need closing here. Call other
+        # clean-up routines
+
+        config.io._clean_up()
 
         return
 
@@ -322,7 +334,7 @@ class Zone:
             abund = 0.0
 
         return abund
-    
+
     @property
     def N_stars(self):
         return self.all_stars.N_stars
@@ -332,7 +344,7 @@ class Zone:
         return np.sum(self.all_stars.M)
 
     def _compute_dt(self):
-        
+
         if config.zone.adaptive_timestep:
             lifetimes = self.all_stars.property_asarray('lifetime','star')
 
@@ -350,23 +362,23 @@ class Zone:
 
         #
         # zero mass accumulators before evolving
-        # 
+        #
         for key in self.species_masses.iterkeys():
             self.Mdot_ej_masses[key] = 0.0
             self.SN_ej_masses[key]   = 0.0
- 
+
         #
         # advance each star one timestep
-        # optional mass arguments mean stars add 
+        # optional mass arguments mean stars add
         # to ejecta bins during evolution (winds and SN)
         # to limit number of loops through star list
         #
-        self.all_stars.evolve(self.t, self.dt, ej_masses    = self.Mdot_ej_masses,  
+        self.all_stars.evolve(self.t, self.dt, ej_masses    = self.Mdot_ej_masses,
                                                sn_masses    = self.SN_ej_masses,
                                                special_accumulator = self.special_mass_accumulator)
 
         self.Mdot_ej = self.Mdot_ej_masses['m_tot'] * config.units.time
-     
+
         for e in self.species_masses.iterkeys():
             self.Mdot_ej_masses[e] *= config.units.time
 
@@ -403,7 +415,7 @@ class Zone:
 
     def _make_new_stars(self, M_sf = -1):
         """
-        Sample IMF to make new stars. Includes methods to 
+        Sample IMF to make new stars. Includes methods to
         handle low SFR's, i.e. when SFR * dt < maximum star mass
         """
         #
@@ -415,7 +427,7 @@ class Zone:
             M_sf = self.dt * self.Mdot_sf
 
         if config.zone.use_SF_mass_reservoir and M_sf > 0.0:
-            # 
+            #
             # Accumulate mass into "reservoir" and wait until
             # this is surpassed to form stars
             #
@@ -447,20 +459,21 @@ class Zone:
 
         #
         # Make new stars if M_gas->star > 0
-        # 
+        #
         if M_sf > 0.0:
 
             # sample from IMF and sum sampled stars
-            # to get actual star formation mass 
+            # to get actual star formation mass
             star_masses = config.zone.imf.sample(M = M_sf)
             M_sf = np.sum(star_masses)
 
             # add each new star to the star list
-            for m in star_masses:
-
-                self.all_stars.add_new_star( star.Star(M=m, Z=self.Z, abundances=self.abundances,
-                                                 tform=self.t,id=self._assign_particle_id()))
-
+            ids = np.zeros(np.size(star_masses))
+            for i,m in enumerate(star_masses):
+                ids[i] = self._assign_particle_id()
+                self.all_stars.add_new_star( star.Star(M=m, Z=self.Z,
+                                             abundances=self.abundances,
+                                             tform=self.t,id=ids[i]))
 
         return M_sf
 
@@ -597,7 +610,7 @@ class Zone:
 
         t = self.t + self.dt*0.5
 
-        if np.size(self._tabulated_outflow_t) > 1: # allow constant 
+        if np.size(self._tabulated_outflow_t) > 1: # allow constant
             if t < self._tabulated_outflow_t[0]:
                 _my_print("Current time below minimum time in tabulated outflow rates %3.3E %3.3E"%(t, self._tabulated_outflow_t[0]))
                 raise ValueError
@@ -691,7 +704,8 @@ class Zone:
         """
 
         if force:
-            self.write_full_dump()
+            self.write_output()
+            self.write_full_pickle()
             self.write_summary_output()
             return
 
@@ -705,13 +719,24 @@ class Zone:
         if( (self.t - self._t_last_dump) >= config.io.dt_dump and\
               config.io.dt_dump > 0 ):
             self._t_last_dump = self.t
-            self.write_full_dump()
+            self.write_output()
 
         if( self._cycle_number == 0 or\
            ((self._cycle_number - self._cycle_last_dump) >= config.io.cycle_dump )\
-           and config.io.cycle_dump > 0 ): 
+           and config.io.cycle_dump > 0 ):
             self._cycle_last_dump = self._cycle_number
-            self.write_full_dump()
+            self.write_output()
+
+        if( (self.t - self._t_last_pickle) >= config.io.dt_pickle and\
+              config.io.dt_pickle > 0 ):
+            self._t_last_pickle = self.t
+            self.write_full_pickle()
+
+        if( self._cycle_number == 0 or\
+           ((self._cycle_number - self._cycle_last_pickle) >= config.io.cycle_pickle )\
+           and config.io.cycle_pickle > 0 ):
+            self._cycle_last_pickle = self._cycle_number
+            self.write_full_pickle()
 
         #
         # now check for partial (summary) writes
@@ -730,18 +755,133 @@ class Zone:
 
         return
 
-    def write_full_dump(self):
+    def write_output(self):
+        """
+        Output the full information needed to reconstruct the simulation. This
+        is the mass, metallicity, birth mass, age, abundance, and type for each star,
+        along with the current gas mass, dark matter mass, sfr, and gas abundances.
+
+        """
+
+        # make an HDF5 file to write out to
+        name = config.io.dump_output_basename + "_%0004i"%(self._output_number) + '.h5'
+
+        hf = h5py.File(name, 'w')
+
+        zone_grp = hf.create_group('zone')
+        star_grp = hf.create_group('star')
+        params   = hf.create_group('parameters')
+
+        # save parameters
+        for param_list, grpname in [ (config.units,'units'),\
+                                     (config.zone,'zone'),\
+                                     (config.stars,'stars'),\
+                                     (config.io,'io'), (config.data,'data_table')]:
+            subgrp = params.create_group(grpname)
+
+            for p in dir(param_list):
+                # There may be a better way to do this, but I don't want to have
+                # to explicityly state any params, just print all. Need to skip
+                # all objects or functions though
+                if ('__' in p) or\
+                   callable( getattr(param_list, p))\
+                   or (p[0] == '_') or p == 'imf':
+                  continue
+                #print p, getattr(param_list,p)
+
+                val = getattr(param_list,p)
+                if val is None:
+                    val = "None"
+
+                subgrp.attrs[p] = val
+
+        #
+        # save meta-data as attributes
+        #
+        self._accumulate_summary_data()
+
+        hf.attrs['current_time'] = self.t
+
+
+        #
+        # Save zone parameters. This is anything to do with gas or DM
+        # properties
+        zone_grp.attrs['M_gas']    = self.M_gas
+        zone_grp.attrs['M_DM']     = self.M_DM
+        zone_grp.attrs['M_star']   = self._summary_data['M_star']
+        zone_grp.attrs['M_star_o'] = self._summary_data['M_star_o']
+        zone_grp.attrs['Z_gas']    = self.Z
+
+        for e in self.abundances.iterkeys():
+            zone_grp.attrs[e] = self.abundances[e]
+            zone_grp.attrs[e + '_mass'] = self.species_masses[e]
+
+        #
+        # Save star parameters as lists of values
+        #
+        star_dict = OrderedDict()
+        star_dict['masses'] = self.all_stars.property_asarray('mass')
+        star_dict['initial_mass'] = self.all_stars.property_asarray('birth_mass')
+        star_dict['metallicity']  = self.all_stars.property_asarray('metallicity')
+        star_dict['id']           = self.all_stars.property_asarray('id')
+        star_dict['type']         = self.all_stars.property_asarray('type')
+        star_dict['age']          = self.all_stars.property_asarray('age')
+
+        Nstars = np.size(star_dict['masses'])
+
+        if Nstars > 1:
+            # there has to be a better way to do this... but various iterations
+            # of the below did not work b/c of the different variable types...
+            # doing this the slow way......
+            star_data = [None]*Nstars
+            for i in np.arange(Nstars):
+                star_data[i] = (star_dict['id'][i], star_dict['type'][i],
+                                star_dict['initial_mass'][i],
+                                star_dict['masses'][i], star_dict['age'][i],
+                                star_dict['metallicity'][i])
+            star_data = np.array(star_data, dtype = [ ('id',star_dict['id'].dtype),
+                                                      ('type',star_dict['type'].dtype),
+                                                      ('birth_mass',star_dict['initial_mass'].dtype),
+                                                      ('mass',star_dict['masses'].dtype),
+                                                      ('age',star_dict['age'].dtype),
+                                                      ('metallicity',star_dict['metallicity'].dtype)])
+
+#            star_data = np.column_stack(
+#                                        (star_dict['masses'].astype('float64'), star_dict['initial_mass'].astype('float64'),
+#                                         star_dict['metallicity'].astype('float64'), star_dict['id'].astype('int64'),
+#                                         star_dict['type'].astype('str'),
+#                                         star_dict['age'].astype('float64'))).ravel().view([ ('mass', np.dtype('float64')),
+#                                                                           ('initial_mass', np.dtype('float64')),
+#                                                                           ('metallicity', np.dtype('float64')),
+#                                                                           ('id', np.dtype('int64')),
+#                                                                           ('type', np.dtype('str')),
+#                                                                           ('age', np.dtype('float64'))])
+
+        else:
+            Nstars    = 0
+            star_data = np.zeros(1)
+
+        star_grp.create_dataset(None, data = star_data)
+        star_grp.attrs['number_of_stars'] = Nstars
+
+        hf.close()
+
+        self._output_number += 1
+
+        return
+
+    def write_full_pickle(self):
         """
         Pickle current simulation
         """
 
-        name = config.io.dump_output_basename + "_%00004i"%(self._output_number)
+        name = config.io.pickle_output_basename + "_%00004i"%(self.pickle_output_number)
 
         _my_print("Writing full dump output as " + name + " at time t = %4.4f"%(self.t))
 
         pickle.dump( self , open(name, "w"), -1)
 
-        self._output_number += 1
+        self.pickle_output_number += 1
 
         return
 
@@ -788,7 +928,7 @@ class Zone:
             self._summary_data[key] = self.special_mass_accumulator[key]
 
         if config.io.radiation_binned_output:
-            condition_1 = {'mass': lambda x : (x.M_o >= 1.0)  * (x.M_o < 8.0) *  (x.properties['type'] == 'star')} 
+            condition_1 = {'mass': lambda x : (x.M_o >= 1.0)  * (x.M_o < 8.0) *  (x.properties['type'] == 'star')}
             condition_2 = {'mass': lambda x : (x.M_o >= 8.0)  * (x.M_o < 16.0) * (x.properties['type'] == 'star')}
             condition_3 = {'mass': lambda x : (x.M_o >= 16.0) * (x.M_o < 24.0) * (x.properties['type'] == 'star')}
             condition_4 = {'mass': lambda x : (x.M_o >= 24.0) * (x.M_o < 1000.0) * (x.properties['type'] == 'star')}
