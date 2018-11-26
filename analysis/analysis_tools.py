@@ -5,9 +5,11 @@ from onezone import config as config
 
 from onezone.plots import onezone_plot_tools as ptools
 
-def normalize_abundance_ratio(x1, x2, input_type = 'abundance'):
+
+def abundance_ratio(x1, x2, input_type = 'abundance', normalize = 'solar'):
     """
-    Normalize abundance ratio to solar. x1 and x2 are tuples
+    Return an abundance ratio with optional normalization.
+    x1 and x2 are tuples
     containing either element atomic number and abundance, or
     atomic symbol and abundance (abundance = number of particles).
     E.g.:
@@ -15,11 +17,20 @@ def normalize_abundance_ratio(x1, x2, input_type = 'abundance'):
     or
        normalize_abundance_ratio( (26, 1), (1, 100) )
 
-    Returns [x1/x2] where
-       [x1/x2] = log10(x1/x2) - log10(x1_sun / x2_sun)
-
     Optionally, x1 and x2 can be mass (in cgs, unless astropy units
-    are used) and 
+    are used) or actual abundances.
+
+    Normalization options:
+       "solar" or True: Normalizes to standard stellar abundance
+             notation, where returned ratio is given as:
+
+             [x1/x2] = log10(x1/x2) - log10(x1_sun / x2_sun)
+
+       None or False: No normalization. Just returns:
+                      log10(x1/x2)
+
+       int / float  : Supplying a single value will return:
+                      log10(x1/x2) + normalize
     """
 
     # convert to abundance first
@@ -39,12 +50,23 @@ def normalize_abundance_ratio(x1, x2, input_type = 'abundance'):
         x1_abund = elemental_abundance(x1[0], x1[1])
         x2_abund = elemental_abundance(x2[0], x2[1])
 
-    x1_solar = const.CONST.solar_abundance[x1[0]]
-    x2_solar = const.CONST.solar_abundance[x2[0]]
+    aratio = np.log10(x1_abund / x2_abund)
 
-    aratio = np.log10(x1_abund / x2_abund) - (x1_solar - x2_solar) # np.log10( x1_solar / x2_solar)
+    if normalize is None or (normalize == False):
+        norm = 0.0
 
-    return aratio
+    elif (normalize == 'solar') or (normalize == True):
+        x1_solar = const.CONST.solar_abundance[x1[0]]
+        x2_solar = const.CONST.solar_abundance[x2[0]]
+
+        norm =  -1.0*(x1_solar - x2_solar) # np.log10( x1_solar / x2_solar)
+
+    elif len(normalize) == 1:
+        # assume a number
+        norm = normalize
+
+    return aratio + norm
+
 
 def elemental_abundance(element, mass):
 
