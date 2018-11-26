@@ -6,6 +6,45 @@ from onezone import config as config
 from onezone.plots import onezone_plot_tools as ptools
 
 
+def renormalize_abundances(x, e1, e2, input_norm = 'solar', output_norm = None):
+
+    if input_norm == 'solar':
+        e1_solar = const.CONST.solar_abundance[e1]
+        e2_solar = const.CONST.solar_abundance[e2]
+
+        x = 1.0*x + (e1_solar - e2_solar)
+
+    elif input_norm == 'gas':
+
+        if e1 == 'O' and e2 == 'H':
+            x = 1.0*x - 12.0
+
+
+
+    if output_norm == 'gas':
+
+        if e1 == 'O' and e2 == 'H':
+            x = 1.0*x + 12.0
+        # else, do nothing and just return ratio
+
+    elif output_norm == 'solar':
+        e1_solar = const.CONST.solar_abundance[e1]
+        e2_solar = const.CONST.solar_abundance[e2]
+
+        x = 1.0*x - (e1_solar - e2_solar)
+
+    elif (not (output_norm is None)) and np.size(output_norm) == 1:
+
+        x = 1.0*x + output_norm
+
+    elif not (output_norm is None):
+        print "No output options currently exist aside from 'solar', 'gas', or None"
+        raise ValueError
+
+    return x
+
+
+
 def abundance_ratio(x1, x2, input_type = 'abundance', normalize = 'solar'):
     """
     Return an abundance ratio with optional normalization.
@@ -52,6 +91,8 @@ def abundance_ratio(x1, x2, input_type = 'abundance', normalize = 'solar'):
 
     aratio = np.log10(x1_abund / x2_abund)
 
+    norm = 0.0
+
     if normalize is None or (normalize == False):
         norm = 0.0
 
@@ -61,9 +102,17 @@ def abundance_ratio(x1, x2, input_type = 'abundance', normalize = 'solar'):
 
         norm =  -1.0*(x1_solar - x2_solar) # np.log10( x1_solar / x2_solar)
 
+    elif normalize == 'gas':
+
+        if ((x1[0] == 'O') and (x2[0] == 'H')) or
+            (x1[0] == 8)   and (x2[0] == 1)):
+
+            norm = 12.0
+
     elif len(normalize) == 1:
         # assume a number
         norm = normalize
+
 
     return aratio + norm
 
