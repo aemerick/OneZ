@@ -5,13 +5,20 @@ __author__ = "aemerick <emerick@astro.columbia.edu>"
 from collections import OrderedDict
 import numpy as np
 
+import os as _os
+
+
 # --- internal ---
 from constants import CONST as const
 
 #
 # need to code this up as a global set in setup.py
-# 
-install_dir = '/mnt/xfs1/home/emerick/code/onezone/'
+#   --- but really bad hacks are fun!?!
+_possible_dirs = ['/mnt/xfs1/home/emerick/code/onezone/',
+                 '/home/aemerick/code/onezone/']
+for x in _possible_dirs:
+    if (_os.path.exists(x)):
+        install_dir = x
 
 class DataTable:
 
@@ -35,11 +42,11 @@ class DataTable:
         matches the order of the dimensions in
         """
 
-        if isinstance(vals, dict):  
+        if isinstance(vals, dict):
             # make sure all keys exist
             not_exist = [not vals.has_key(x) for x in self.dim_names]
             if any(not_exist):
-                print "Need to supply all values ", self.dim_names       
+                print "Need to supply all values ", self.dim_names
                 print "only gave", self.vals.keys()
                 raise KeyError
 
@@ -79,7 +86,7 @@ class DataTable:
 
         # obtain interpoaltion coefficients and index for nearest
         # grid points
-        c, id = cls._interpolation_coefficients(vals, val_arrays, 
+        c, id = cls._interpolation_coefficients(vals, val_arrays,
                                                   silence, flag, special_errval)
 
         n       = len(vals) # number of dimensions
@@ -93,17 +100,17 @@ class DataTable:
             print "interpolation coefficients don't match dimensions - something broke"
             raise RuntimeError # something is wrong
 
-        return_list = [None] * len(y_list)    
+        return_list = [None] * len(y_list)
         count = 0
 
         for y in y_list:
-            # check if user supplied special errval where grid may exist but 
-            # the values are erroneous... Let user know with their provided flag       
-            if special_errval != None: 
+            # check if user supplied special errval where grid may exist but
+            # the values are erroneous... Let user know with their provided flag
+            if special_errval != None:
                 if cls._check_for_special_errval(n, id, y, special_errval):
                     return_list[count] =  special_flag
                     count = count + 1
-                    break 
+                    break
             # otherwise, actually perform the interpolation
 
             if n == 1: # linear interpolation
@@ -117,7 +124,7 @@ class DataTable:
                        (1.0 - c[0]) * (      c[1]) * y[i  ][j+1] +\
                        (      c[0]) * (      c[1]) * y[i+1][j+1] +\
                        (      c[0]) * (1.0 - c[1]) * y[i+1][j  ]
- 
+
             elif n == 3: # trilinear interpolation
                 i,j,k = id
 
@@ -156,7 +163,7 @@ class DataTable:
 
             if y[i  ][j  ] == special_errval or y[i  ][j+1] == errval or\
                y[i+1][j+1] == special_errval or y[i+1][j  ] == errval:
-                 
+
                 return True
 
         elif n == 3:
@@ -190,12 +197,12 @@ class DataTable:
                 if coeff[i] == flag:
                     return flag, flag
 
-        
+
 
         return np.array(coeff), np.array(indeces)
 
     @classmethod
-    def _linear_interpolation_coefficients(cls, x, xarray, 
+    def _linear_interpolation_coefficients(cls, x, xarray,
                                            silence=False, flag="offgrid", special_errval=None):
 
         # check bounds in this dimension
@@ -204,7 +211,7 @@ class DataTable:
             # In some cases data off grid is O.K. In this case don't complain,
             # instead return the flag values so calling function can do somthing
             # else for data off grid
-            if silence:     
+            if silence:
                 return flag, flag
 
             print "value", x, "off of grid with bounds",  xarray[0], xarray[-1]
@@ -216,7 +223,7 @@ class DataTable:
 
         t = (x - xarray[i]) / (xarray[i+1] - xarray[i])
 
-        return t, i        
+        return t, i
 
     def y_names(self):
         return self.y.keys()
@@ -227,7 +234,7 @@ class DataTable:
 
 
 
-# in rad data class, do 
+# in rad data class, do
 # try:
 #      interpolation coeff
 # except ValueError:
@@ -249,15 +256,15 @@ class StellarEvolutionData(DataTable):
         if data_dir == None:
             self.data_dir = install_dir + 'Data/'
 
-        # 
+        #
         self.x['mass'] = np.array( [  1.0,  2.0,  3.0,  4.0,   5.0,
                                       6.0,  7.0,  8.0, 10.0,  12.0,
                                      14.0, 16.0, 18.0, 20.0,  24.0,
                                      28.0, 30.0, 35.0, 40.0,  50.0,
-                                     55.0, 60.0, 70.0, 90.0, 100.0, 
+                                     55.0, 60.0, 70.0, 90.0, 100.0,
                                     120.0])
 
-        self.x['metallicity'] = np.array( [0.0001, 0.0002, 0.0005, 0.001, 
+        self.x['metallicity'] = np.array( [0.0001, 0.0002, 0.0005, 0.001,
                                            0.002, 0.004, 0.006, 0.008,
                                            0.01, 0.014, 0.017] )
 
@@ -293,7 +300,7 @@ class StellarEvolutionData(DataTable):
 
         self.Zsolar = const.Zsolar_parsec
 
-        return None     
+        return None
 
 
 class RadiationData(DataTable):
@@ -327,7 +334,7 @@ class RadiationData(DataTable):
 
         # now, read in each of the data sets
         self.y['q0'] = None; self.y['q1'] = None; self.y['FUV_flux'] = None; self.y['LW_flux'] = None
-        self._data_file_names = {'q0' : 'q0_rates.in' , 'q1' : 'q1_rates.in' , 
+        self._data_file_names = {'q0' : 'q0_rates.in' , 'q1' : 'q1_rates.in' ,
                                  'FUV_flux' : 'FUV_rates.in', 'LW_flux' : 'LW_rates.in'}
 
         # make the data arrays and shape to the correct dimensions and size
@@ -342,7 +349,7 @@ class RadiationData(DataTable):
         # be fixed for better user experience - 5/2016
         #
 
-        # now load from each file - 
+        # now load from each file -
         # q0 and q1 files atm have reverse ordered metalliciites atm
         # fuv flux file is in value order - this needs to be changes 5/2016
         for name in self.y.iterkeys():
@@ -368,7 +375,7 @@ class RadiationData(DataTable):
         for name in ['q0','q1']:
             self.y[name] = 10.0**(self.y[name])
 
-        # flag FUV values that are off of the grid  
+        # flag FUV values that are off of the grid
         self.y['FUV_flux'][ self.y['FUV_flux'] <= 0.0] = -1
         self.y['LW_flux' ][ self.y['LW_flux']  <= 0.0] = -1
 
@@ -379,7 +386,7 @@ class RadiationData(DataTable):
 
     def interpolate(self, vals, ynames, silence = None):
 
-        if silence == None: # default behavior is ignore off grid values 
+        if silence == None: # default behavior is ignore off grid values
             silence = True  # this usualy means radiation should be computed some other way
 
         single_output = False
@@ -398,7 +405,7 @@ class RadiationData(DataTable):
                                             special_errval = 0.0)
 
             elif yname == 'FUV_flux' or yname == 'LW_flux':
-    
+
                 return_list[count] =  DataTable.interpolate(self, vals, yname, silence = silence,
                                             flag = 'offgrid', special_flag = 'offgrid',
                                             special_errval = -1.0)
@@ -412,13 +419,13 @@ class RadiationData(DataTable):
         else:
             return return_list
 
-    
+
 class StellarYieldsTable(DataTable):
 
     def __init__(self, yield_type, name = None, manual_table = False):
         """ StellarYieldsDataTable subclass of DataTable
 
-        Given an table type, reads in and constructs data table for 
+        Given an table type, reads in and constructs data table for
         stellar yields. Assigns a name to that table as a descriptor
         (name is not used for anything else).
 
@@ -432,7 +439,7 @@ class StellarYieldsTable(DataTable):
                a pre-determined descriptive name is used.
 
         """
-        
+
         if yield_type == 'SNII' and name == None:
             name = 'SNII Stellar Yields Table'
         elif yield_type == 'wind' and name == None:
@@ -443,7 +450,7 @@ class StellarYieldsTable(DataTable):
             print "Error must set a yiled type as either SNII, wind, or massive_star"
             raise RuntimeError
 
-        
+
         DataTable.__init__(self, name)
 
         self.ndim = 2
@@ -476,7 +483,7 @@ class StellarYieldsTable(DataTable):
         elif yield_type == 'massive_star':
             filename = 'stellar_yields_massive_star.in'
             max_col  = 	34
-       
+
         tmp_data = np.genfromtxt(self.data_dir + filename, usecols = (0,1), names=True)
 
         self.x['mass']        = np.unique( tmp_data['M'] )
@@ -500,8 +507,8 @@ class StellarYieldsTable(DataTable):
 
     def interpolate(self, vals, ynames, silence = True):
         """ interpolate
-    
-        Wrapper around base class interpolation routine to handle 
+
+        Wrapper around base class interpolation routine to handle
         edge cases better in this specific instance.
         """
 
@@ -527,7 +534,7 @@ class StellarYieldsTable(DataTable):
         else:
             if output == 'offgrid':
                 out_of_bounds = True
-          
+
         # if out of bounds, quietly give back all zeros
         if out_of_bounds:
             output = np.zeros(len(ynames))

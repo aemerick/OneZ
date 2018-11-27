@@ -72,6 +72,24 @@ def LW_flux_blackbody(T):
     return LW_flux
 
 
+# AE: To do rename this function to black_body_flux and
+#     have this be the main function to use. Rename the other
+#     one to something else, and rewrite everything to be
+#     called via this. (a little easier to use rather
+#     than having to precompute the unitless numbers)
+def BB_flux(E1, E2, T):
+    """
+    Wrapper to compute black body flux given minimum and 
+    maximum energies (in eV) and a black body temperature.
+    """
+
+    x1 = E1 / (const.k_boltz * T) / const.eV_erg
+    x2 = E2 / (const.k_boltz * T) / const.eV_erg
+
+    A = 2.0 * const.k_boltz**4 * T**4 / (const.h**3 * const.c**2)
+
+    return A * black_body_flux(x1, x2)
+
 def black_body_flux(x1,x2):
     """ 
     Compute the black body flux between given unitless energy range
