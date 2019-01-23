@@ -446,6 +446,8 @@ class StellarYieldsTable(DataTable):
             name = 'Stellar Winds Stellar Yields Table'
         elif yield_type == 'massive_star' and name == None:
             name = 'Massive Star Stellar Winds Yields Table'
+        elif yield_type == 'popIII' and name == None:
+            name = "Pop III yields"
         elif yield_type == None:
             print "Error must set a yiled type as either SNII, wind, or massive_star"
             raise RuntimeError
@@ -480,6 +482,8 @@ class StellarYieldsTable(DataTable):
             filename = 'stellar_yields.in'
         elif yield_type == 'wind':
             filename = 'stellar_yields_winds.in'
+        elif yield_type == 'popIII':
+            filename = 'popIII_yields.dat'
         elif yield_type == 'massive_star':
             filename = 'stellar_yields_massive_star.in'
             max_col  = 	34
