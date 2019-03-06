@@ -104,8 +104,8 @@ def abundance_ratio(x1, x2, input_type = 'abundance', normalize = 'solar'):
 
     elif normalize == 'gas':
 
-        if ((x1[0] == 'O') and (x2[0] == 'H')) or
-            (x1[0] == 8)   and (x2[0] == 1)):
+        if (((x1[0] == 'O') and (x2[0] == 'H')) or\
+            ((x1[0] == 8)   and (x2[0] == 1))):
 
             norm = 12.0
 
