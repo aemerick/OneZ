@@ -15,7 +15,8 @@ from constants import CONST as const
 # need to code this up as a global set in setup.py
 #   --- but really bad hacks are fun!?!
 _possible_dirs = ['/mnt/xfs1/home/emerick/code/onezone/',
-                 '/home/aemerick/code/onezone/']
+                 '/home/aemerick/code/onezone/',
+                 '/home/emerick/code/onezone/']
 for x in _possible_dirs:
     if (_os.path.exists(x)):
         install_dir = x
