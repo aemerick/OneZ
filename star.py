@@ -30,6 +30,7 @@ RAD_TABLE = DT.RadiationData()
 SN_YIELD_TABLE           = DT.StellarYieldsTable('SNII')
 WIND_YIELD_TABLE         = DT.StellarYieldsTable('wind')
 MASSIVE_STAR_YIELD_TABLE = DT.StellarYieldsTable('massive_star')
+POPIII_YIELD_TABLE       = DT.StellarYieldsTable("popIII")
 
 class StarParticle:
 
