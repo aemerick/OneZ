@@ -486,15 +486,21 @@ class StellarYieldsTable(DataTable):
             filename = 'popIII_yields.dat'
         elif yield_type == 'massive_star':
             filename = 'stellar_yields_massive_star.in'
-            max_col  = 	34
+            max_col  =  34
 
-        tmp_data = np.genfromtxt(self.data_dir + filename, usecols = (0,1), names=True)
+        if yield_type == 'popIII':
+            tmp_data = np.genfromtxt(self.data_dir + filename, usecols = (0), names = True)
+            self.x['mass']     = np.unique( tmp_data['M'] )
+            self.nbins['mass'] = np.size(self.x['mass'])
 
-        self.x['mass']        = np.unique( tmp_data['M'] )
-        self.x['metallicity'] = np.unique( tmp_data['Z'] )
+        else:
+            tmp_data = np.genfromtxt(self.data_dir + filename, usecols = (0,1), names=True)
 
-        self.nbins['mass']        = np.size(self.x['mass'])
-        self.nbins['metallicity'] = np.size(self.x['metallicity'])
+            self.x['mass']        = np.unique( tmp_data['M'] )
+            self.x['metallicity'] = np.unique( tmp_data['Z'] )
+
+            self.nbins['mass']        = np.size(self.x['mass'])
+            self.nbins['metallicity'] = np.size(self.x['metallicity'])
 
         self._array_size = int( np.prod(self.nbins.values()))
 
