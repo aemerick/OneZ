@@ -7,24 +7,24 @@ import numpy as np
 def panel_plot(xname, yname, data, dim = [0,0], logscale = True,
                 xlabel = '-', ylabel = '-', normalize = False, *args, **kwargs):
 
-    if isinstance(xname, basestring) and isinstance(yname, basestring):
+    if isinstance(xname, str) and isinstance(yname, str):
         xname  = [xname]
         yname  = [yname]
         xlabel = [xlabel]
         ylabel = [ylabel]
-    elif isinstance(xname, basestring) and not isinstance(yname, basestring):
+    elif isinstance(xname, str) and not isinstance(yname, str):
         nplots = len(yname)
         xname  = [xname] * nplots
         xlabel = [xlabel] * nplots
-    elif not isinstance(xname, basestring) and not isinstance(yname, basestring):
+    elif not isinstance(xname, str) and not isinstance(yname, str):
         # assume both are lists of names
         if not ( len(xname) == len(yname) ):
-            print "lengths of x and y axis names must match"
+            print("lengths of x and y axis names must match")
             raise TypeError
 
         nplots = len(yname)
 
-    if isinstance(ylabel, basestring):
+    if isinstance(ylabel, str):
         ylabel = [ylabel] * nplots
 
     #

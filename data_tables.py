@@ -9,7 +9,7 @@ import os as _os
 
 
 # --- internal ---
-from constants import CONST as const
+from .constants import CONST as const
 
 #
 # need to code this up as a global set in setup.py
@@ -44,10 +44,10 @@ class DataTable:
 
         if isinstance(vals, dict):
             # make sure all keys exist
-            not_exist = [not vals.has_key(x) for x in self.dim_names]
+            not_exist = [x not in vals for x in self.dim_names]
             if any(not_exist):
-                print "Need to supply all values ", self.dim_names
-                print "only gave", self.vals.keys()
+                print("Need to supply all values ", self.dim_names)
+                print("only gave", list(self.vals.keys()))
                 raise KeyError
 
             vals_list = [ vals[x] for x in self.dim_names]
@@ -55,16 +55,16 @@ class DataTable:
             vals_list = vals
 
         single_output = False
-        if isinstance(ynames, basestring):
+        if isinstance(ynames, str):
             ynames = [ynames]
             single_output = True
 
         y_list = [ self.y[yname] for yname in ynames ]
 
-        return_list =  self._interpolate(vals_list, self.x.values(), y_list,
+        return_list =  self._interpolate(vals_list, list(self.x.values()), y_list,
                                                     *args, **kwargs)
         if single_output:
-            if isinstance(return_list, basestring):
+            if isinstance(return_list, str):
                 return return_list
             else:
                 return return_list[0]
@@ -97,7 +97,7 @@ class DataTable:
                 return flag
 
         elif len(c) != n:
-            print "interpolation coefficients don't match dimensions - something broke"
+            print("interpolation coefficients don't match dimensions - something broke")
             raise RuntimeError # something is wrong
 
         return_list = [None] * len(y_list)
@@ -138,7 +138,7 @@ class DataTable:
                        (      c[0])*(1.0 - c[1])*(      c[2]) * y[i+1][j  ][k+1]
 
             elif n > 3: # does not support degree above 3
-                print "We do not support n > 3 dimensional interpolation"
+                print("We do not support n > 3 dimensional interpolation")
                 raise RuntimeError
 
             return_list[count] = yval
@@ -214,7 +214,7 @@ class DataTable:
             if silence:
                 return flag, flag
 
-            print "value", x, "off of grid with bounds",  xarray[0], xarray[-1]
+            print("value", x, "off of grid with bounds",  xarray[0], xarray[-1])
             raise ValueError
 
         i = np.abs( x - xarray).argmin()
@@ -226,10 +226,10 @@ class DataTable:
         return t, i
 
     def y_names(self):
-        return self.y.keys()
+        return list(self.y.keys())
 
     def y_values(self):
-        return self.y.values()
+        return list(self.y.values())
 
 
 
@@ -272,7 +272,7 @@ class StellarEvolutionData(DataTable):
         self.nbins['mass'] = np.size(self.x['mass'])
         self.nbins['metallicity'] = np.size(self.x['metallicity'])
 
-        self._array_size = int( np.prod(self.nbins.values()))
+        self._array_size = int( np.prod(list(self.nbins.values())))
 
 
         # now read in each of the data sets
@@ -294,7 +294,7 @@ class StellarEvolutionData(DataTable):
                 self.y[ self.y_names()[counter]  ][i][j] = line[counter+2]
 
             j = j + 1
-            if j >= (self.nbins.values())[1]:
+            if j >= (list(self.nbins.values()))[1]:
                 j = 0
                 i = i + 1
 
@@ -325,7 +325,7 @@ class RadiationData(DataTable):
         self.nbins['temperature']     = 12
         self.nbins['surface_gravity'] = 8
         self.nbins['metallicity']    = 10
-        self._array_size              = int( np.prod(self.nbins.values()))
+        self._array_size              = int( np.prod(list(self.nbins.values())))
 
         # set values for each dimension
         self.x['temperature']     = np.arange(27500.0, 57500.0, 2500.0)
@@ -352,7 +352,7 @@ class RadiationData(DataTable):
         # now load from each file -
         # q0 and q1 files atm have reverse ordered metalliciites atm
         # fuv flux file is in value order - this needs to be changes 5/2016
-        for name in self.y.iterkeys():
+        for name in self.y.keys():
             data = np.genfromtxt(self.data_dir + self._data_file_names[name],
                                  usecols=(2,3,4,5,6,7,8,9,10,11))
 
@@ -390,7 +390,7 @@ class RadiationData(DataTable):
             silence = True  # this usualy means radiation should be computed some other way
 
         single_output = False
-        if isinstance(ynames, basestring):
+        if isinstance(ynames, str):
             ynames = [ynames]
             single_output = True
 
@@ -412,7 +412,7 @@ class RadiationData(DataTable):
             count = count + 1
 
         if single_output:
-            if isinstance(return_list, basestring):
+            if isinstance(return_list, str):
                 return return_list
             else:
                 return return_list[0]
@@ -449,7 +449,7 @@ class StellarYieldsTable(DataTable):
         elif yield_type == 'popIII' and name == None:
             name = "Pop III yields"
         elif yield_type == None:
-            print "Error must set a yiled type as either SNII, wind, or massive_star"
+            print("Error must set a yiled type as either SNII, wind, or massive_star")
             raise RuntimeError
 
 
@@ -502,7 +502,7 @@ class StellarYieldsTable(DataTable):
             self.nbins['mass']        = np.size(self.x['mass'])
             self.nbins['metallicity'] = np.size(self.x['metallicity'])
 
-        self._array_size = int( np.prod(self.nbins.values()))
+        self._array_size = int( np.prod(list(self.nbins.values())))
 
         data   = np.genfromtxt(self.data_dir + filename, usecols=np.arange(2,max_col), names=True)
 
@@ -510,7 +510,7 @@ class StellarYieldsTable(DataTable):
             self.y[element]   = data[element].reshape(tuple(self.nbins.values()))
 
 
-        self._available_yields = self.y.keys()
+        self._available_yields = list(self.y.keys())
 
         return None
 
@@ -536,7 +536,7 @@ class StellarYieldsTable(DataTable):
 
         # check output, make sure not out of bounds or offgrid
         out_of_bounds = False
-        if not isinstance(output, basestring):
+        if not isinstance(output, str):
             for a in output:
                 if a == 'offgrid':
                     out_of_bounds = True
@@ -555,4 +555,4 @@ class StellarYieldsTable(DataTable):
 
         # return only the array, not full dictionary
         # can get away with just .values() since using OrderedDict
-        return dict_output.values()
+        return list(dict_output.values())

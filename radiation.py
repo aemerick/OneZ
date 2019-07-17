@@ -2,7 +2,7 @@
 import numpy as np
 
 # --- internal ---
-from constants import CONST as const
+from .constants import CONST as const
 
 
 def compute_blackbody_q1(T):

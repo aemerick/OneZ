@@ -11,21 +11,21 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv, "hi:o")
     except getopt.GetoptError:
-        print 'restart.py -i <pickled_output_filename>'
+        print('restart.py -i <pickled_output_filename>')
         sys.exit(2)
 
     for opt, arg in opts:
 
         if opt == '-h':
-            print 'Restart onezone model from a picked dump file'
-            print 'restart.py -i <pickled_output_filename>'
+            print('Restart onezone model from a picked dump file')
+            print('restart.py -i <pickled_output_filename>')
             sys.exit()
         elif opt in ("-i", "--ifile"):
             inputfile = arg
         else:
-            print "option not understood"
+            print("option not understood")
 
-    print "Restarting from file ", inputfile
+    print("Restarting from file ", inputfile)
 
     zone.restart(inputfile)    
 

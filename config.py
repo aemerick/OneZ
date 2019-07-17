@@ -5,8 +5,8 @@ from collections import OrderedDict
 import numpy as np
 
 # --- internal ---
-from constants import CONST as const
-import imf as imf
+from .constants import CONST as const
+from . import imf as imf
 
 import os
 
@@ -19,7 +19,7 @@ class _parameters(object):
         pass
 
     def help(self):
-        print self.__doc__
+        print(self.__doc__)
 
     def reset_parameters_to_default(self):
         self.__init__()
@@ -430,7 +430,7 @@ def information():
     all parameters at once.
     """
 
-    print information.__doc__
+    print(information.__doc__)
 
 def help():
     """
@@ -450,6 +450,6 @@ def reset_all_parameters():
     for obj in [zone, stars, io]:
         obj.reset_parameters_to_default()
 
-    print "ALL parameters reset to default"
+    print("ALL parameters reset to default")
 
     return

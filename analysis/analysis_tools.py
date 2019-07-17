@@ -38,7 +38,7 @@ def renormalize_abundances(x, e1, e2, input_norm = 'solar', output_norm = None):
         x = 1.0*x + output_norm
 
     elif not (output_norm is None):
-        print "No output options currently exist aside from 'solar', 'gas', or None"
+        print("No output options currently exist aside from 'solar', 'gas', or None")
         raise ValueError
 
     return x
@@ -144,24 +144,24 @@ def IMF_weighted_quantity(Mavg, imf = None, quantity = None, Z = 0.0043,
 
     elif not hasattr(imf, '__call__'):
         # then like a string, load appropriate IMF based on name
-        print "Ability to use this using IMF string name not yet implemented"
+        print("Ability to use this using IMF string name not yet implemented")
         raise RuntimeError
 
     available_quantities = ['Q0','Q1','E0','E1','luminosity','lifetime',
                             'age_agb','Teff','L_FUV','L_LW', 'ones']
 
     if (quantity is None) or \
-       ((not isinstance(quantity, basestring)) and M is None):
-        print """ Must provide a quantity to IMF average
+       ((not isinstance(quantity, str)) and M is None):
+        print(""" Must provide a quantity to IMF average
                   this is either a one argument function of mass,
                   a string name of any of the below listed names,
                   or a list of values. If values are passed, one must
-                  also provide a corresponding list of masses """
+                  also provide a corresponding list of masses """)
 
 
-        print available_quantities
+        print(available_quantities)
 
-    elif isinstance(quantity, basestring):
+    elif isinstance(quantity, str):
         s, m, z = ptools.star_sample( n_sample, [1.0, 100.0], Z)
         s = np.reshape(s, (n_sample,))
         m = np.reshape(m, (n_sample,))

@@ -2,7 +2,7 @@ import numpy as np
 from galaxy_analysis.plot.plot_styles import *
 
 import matplotlib.pyplot as plt
-import onezone_plot_tools as ptools
+from . import onezone_plot_tools as ptools
 
 from collections import OrderedDict
 
@@ -34,9 +34,9 @@ def plot_yields(abundances, yield_mode, fractional=False, IMF_weighted=False):
     labels = {}
     for a in abundances:
         labels[a] = a
-    if 'm_tot' in labels.keys():
+    if 'm_tot' in list(labels.keys()):
         labels['m_tot'] = 'Total Mass'
-    if 'm_metal' in labels.keys():
+    if 'm_metal' in list(labels.keys()):
         labels['m_metal'] = 'Total Metals'
     
     for nz in np.arange(np.size(z)):

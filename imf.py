@@ -31,9 +31,9 @@ class IMF(object):
             if x < array[i] and i > 0:
                 i = i -1
             if x < array[i] and i > 0:
-                print i+2, array[i+2], x
-                print i, array[i], x
-                print "Failure finding bin"
+                print(i+2, array[i+2], x)
+                print(i, array[i], x)
+                print("Failure finding bin")
 
             return i
 
@@ -156,10 +156,10 @@ class kroupa(IMF):
         Evaluates the imf at a point m
         """
         
-        print M
+        print(M)
         M, scalar_input = _check_scalar_input(M)
 
-        print M
+        print(M)
         low_mass = (M <= 0.08)
         mid_mass = (M  > 0.08)*(M <= 0.5)
         salpeter = (M  > 0.5 )

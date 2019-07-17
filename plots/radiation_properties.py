@@ -14,7 +14,7 @@ rc('font', size = 24)
 
 import matplotlib.pyplot as plt
 
-import onezone_plot_tools as ptools
+from . import onezone_plot_tools as ptools
 from onezone import config as config
 
 def plot_property(name, IMF_weighted = False, xlim = None, ylim = None):
@@ -61,7 +61,7 @@ def plot_property(name, IMF_weighted = False, xlim = None, ylim = None):
 
     ax.set_xlabel(r'Stellar Mass (M$_{\odot}$)')
 
-    if label_dict.has_key(name):
+    if name in label_dict:
         ax.set_ylabel(label_dict[name])
     else:
         ax.set_ylabel(name)

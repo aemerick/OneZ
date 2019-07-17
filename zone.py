@@ -19,18 +19,18 @@ from scipy.interpolate import interp1d
 try:
     import dill as pickle
 except:
-    print "WARNING: Dill unavailable, attempting to use pickle, which may crash"
+    print("WARNING: Dill unavailable, attempting to use pickle, which may crash")
     try:
-        import cPickle as pickle
+        import pickle as pickle
     except:
-        print "WARNING: cPickle unavailable, using pickle - data dumps will be slow"
+        print("WARNING: cPickle unavailable, using pickle - data dumps will be slow")
         import pickle
 
 # internal
-import imf  as imf
-import star as star
-import config as config
-from constants import CONST as const
+from . import imf  as imf
+from . import star as star
+from . import config as config
+from .constants import CONST as const
 
 def restart(filename):
     """
@@ -140,7 +140,7 @@ class Zone:
             abundances = {'empty' : 0.0}
 
         for e in elements:
-            if e in abundances.iterkeys():
+            if e in iter(abundances.keys()):
                 self.initial_abundances[e] = abundances[e]
             elif e == 'H':
                 self.initial_abundances[e] = 0.75*(1.0 - self.Z)
@@ -153,7 +153,7 @@ class Zone:
             else:
                 self.initial_abundances[e] = 0.0
 
-        for e in self.initial_abundances.iterkeys():
+        for e in self.initial_abundances.keys():
             self.species_masses[e] = self.M_gas * self.initial_abundances[e]
 
 
@@ -244,7 +244,7 @@ class Zone:
             #
             # VII) Compute increase / decrease of individual abundances
             #
-            for e in self.species_masses.iterkeys():
+            for e in self.species_masses.keys():
                 self.species_masses[e] = self.species_masses[e] +  (self.Mdot_in  * self.Mdot_in_abundances(e) +\
                                            self.Mdot_ej_masses[e] -\
                                            self.Mdot_out_species[e]) * self.dt -\
@@ -313,7 +313,7 @@ class Zone:
 
         abund = {}
 
-        for x in self.species_masses.iterkeys():
+        for x in self.species_masses.keys():
             abund[x] = self.species_masses[x] / self.M_gas
 
 
@@ -363,7 +363,7 @@ class Zone:
         #
         # zero mass accumulators before evolving
         #
-        for key in self.species_masses.iterkeys():
+        for key in self.species_masses.keys():
             self.Mdot_ej_masses[key] = 0.0
             self.SN_ej_masses[key]   = 0.0
 
@@ -379,7 +379,7 @@ class Zone:
 
         self.Mdot_ej = self.Mdot_ej_masses['m_tot'] * config.units.time
 
-        for e in self.species_masses.iterkeys():
+        for e in self.species_masses.keys():
             self.Mdot_ej_masses[e] *= config.units.time
 
         return
@@ -545,7 +545,7 @@ class Zone:
             # these are fractional outflow rates:
             self.Mdot_out             = self._interpolate_tabulated_outflow('m_tot')     # get total outflow rate
 
-            for e in self.abundances.keys():
+            for e in list(self.abundances.keys()):
                 self.Mdot_out_species[e]  = self._interpolate_tabulated_outflow(e)       # for each species
 
             if config.zone.mass_outflow_method == 2: # outflow depends on sfr
@@ -553,19 +553,19 @@ class Zone:
                 # multiply by SFR and current total amount of each species
                 self.Mdot_out = self.Mdot_out * self.Mdot_sf * self.M_gas
 
-                for e in self.Mdot_out_species.keys():
+                for e in list(self.Mdot_out_species.keys()):
                     self.Mdot_out_species[e] = self.Mdot_out_species[e] * self.Mdot_sf * (self.M_gas * self.abundances[e])
 
             else: # outflow is a fixed fraction of injection - use mass loading factor for total, H, and He
                 self.Mdot_out = config.zone.mass_loading_factor * (self.M_sf / self.dt)
 
-                for e in self.abundances.keys():
+                for e in list(self.abundances.keys()):
                     self.Mdot_out_species[e] = (self.Mdot_ej_masses[e] + self.SN_ej_masses[e]) / self.dt # converted to a rate for consistency
 
-                if 'H' in self.Mdot_out_species.keys():
+                if 'H' in list(self.Mdot_out_species.keys()):
                     self.Mdot_out_species['H']   = self.Mdot_out * self.abundances['H']
 
-                if 'He' in self.Mdot_out_species.keys():
+                if 'He' in list(self.Mdot_out_species.keys()):
                     self.Mdot_out_species['He']  = self.Mdot_out * self.abundances['He']
 
         return
@@ -812,7 +812,7 @@ class Zone:
         zone_grp.attrs['M_star_o'] = self._summary_data['M_star_o']
         zone_grp.attrs['Z_gas']    = self.Z
 
-        for e in self.abundances.iterkeys():
+        for e in self.abundances.keys():
             zone_grp.attrs[e] = self.abundances[e]
             zone_grp.attrs[e + '_mass'] = self.species_masses[e]
 
@@ -920,11 +920,11 @@ class Zone:
         self._summary_data['L_Q1'] = np.sum(self.all_stars.property_asarray('Q1') * self.all_stars.property_asarray('E1'))
 
         # now do all of the abundances
-        for e in self.abundances.iterkeys():
+        for e in self.abundances.keys():
             self._summary_data[e] = self.abundances[e]
             self._summary_data[e + '_mass'] = self.species_masses[e]
 
-        for key in self.special_mass_accumulator.iterkeys():
+        for key in self.special_mass_accumulator.keys():
             self._summary_data[key] = self.special_mass_accumulator[key]
 
         if config.io.radiation_binned_output:
@@ -986,10 +986,10 @@ class Zone:
 
         self._accumulate_summary_data()
 
-        ncol = np.size(self._summary_data.keys())
+        ncol = np.size(list(self._summary_data.keys()))
 
         if self._summary_output_number == 0: # print the header only once
-            header = " " + " ".join(self._summary_data.keys()) + "\n"
+            header = " " + " ".join(list(self._summary_data.keys())) + "\n"
 
             f = open(config.io.summary_output_filename,'w')
             f.write(header)
@@ -1007,4 +1007,4 @@ class Zone:
 
 
 def _my_print(string):
-    print '[Zone]: ' + string
+    print('[Zone]: ' + string)

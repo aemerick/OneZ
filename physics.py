@@ -4,8 +4,8 @@ __author__ = "aemerick <emerick@astro.columbia.edu>"
 import numpy as np
 
 # --- internal ---
-from constants import CONST as const
-import config      as config
+from .constants import CONST as const
+from . import config      as config
 
 
 # helper functions for computing physics models
@@ -88,7 +88,7 @@ def SNIa_yields( elements , return_dict = False):
         return yields_dict
 
 
-    if isinstance(elements, basestring):
+    if isinstance(elements, str):
         return yields_dict[elements]
     else:
         return np.asarray([ yields_dict[x] for x in elements ])
@@ -187,4 +187,4 @@ def white_dwarf_mass(M):
 
 
 def _my_print(string):
-    print "[Physics]: " + string
+    print("[Physics]: " + string)
