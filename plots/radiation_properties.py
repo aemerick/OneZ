@@ -14,7 +14,7 @@ rc('font', size = 24)
 
 import matplotlib.pyplot as plt
 
-from . import onezone_plot_tools as ptools
+import onezone_plot_tools as ptools
 from onezone import config as config
 
 def plot_property(name, IMF_weighted = False, xlim = None, ylim = None):
