@@ -47,7 +47,7 @@ class DataTable:
             not_exist = [x not in vals for x in self.dim_names]
             if any(not_exist):
                 print("Need to supply all values ", self.dim_names)
-                print("only gave", list(self.vals.keys()))
+                print("only gave", self.vals.keys())
                 raise KeyError
 
             vals_list = [ vals[x] for x in self.dim_names]
@@ -61,7 +61,7 @@ class DataTable:
 
         y_list = [ self.y[yname] for yname in ynames ]
 
-        return_list =  self._interpolate(vals_list, list(self.x.values()), y_list,
+        return_list =  self._interpolate(vals_list, self.x.values(), y_list,
                                                     *args, **kwargs)
         if single_output:
             if isinstance(return_list, str):
@@ -226,10 +226,10 @@ class DataTable:
         return t, i
 
     def y_names(self):
-        return list(self.y.keys())
+        return self.y.keys()
 
     def y_values(self):
-        return list(self.y.values())
+        return self.y.values()
 
 
 
@@ -272,7 +272,7 @@ class StellarEvolutionData(DataTable):
         self.nbins['mass'] = np.size(self.x['mass'])
         self.nbins['metallicity'] = np.size(self.x['metallicity'])
 
-        self._array_size = int( np.prod(list(self.nbins.values())))
+        self._array_size = int( np.prod(self.nbins.values()))
 
 
         # now read in each of the data sets
@@ -294,7 +294,7 @@ class StellarEvolutionData(DataTable):
                 self.y[ self.y_names()[counter]  ][i][j] = line[counter+2]
 
             j = j + 1
-            if j >= (list(self.nbins.values()))[1]:
+            if j >= (self.nbins.values())[1]:
                 j = 0
                 i = i + 1
 
@@ -325,7 +325,7 @@ class RadiationData(DataTable):
         self.nbins['temperature']     = 12
         self.nbins['surface_gravity'] = 8
         self.nbins['metallicity']    = 10
-        self._array_size              = int( np.prod(list(self.nbins.values())))
+        self._array_size              = int( np.prod(self.nbins.values()))
 
         # set values for each dimension
         self.x['temperature']     = np.arange(27500.0, 57500.0, 2500.0)
@@ -502,7 +502,7 @@ class StellarYieldsTable(DataTable):
             self.nbins['mass']        = np.size(self.x['mass'])
             self.nbins['metallicity'] = np.size(self.x['metallicity'])
 
-        self._array_size = int( np.prod(list(self.nbins.values())))
+        self._array_size = int( np.prod(self.nbins.values()))
 
         data   = np.genfromtxt(self.data_dir + filename, usecols=np.arange(2,max_col), names=True)
 
@@ -510,7 +510,7 @@ class StellarYieldsTable(DataTable):
             self.y[element]   = data[element].reshape(tuple(self.nbins.values()))
 
 
-        self._available_yields = list(self.y.keys())
+        self._available_yields = self.y.keys()
 
         return None
 
@@ -555,4 +555,4 @@ class StellarYieldsTable(DataTable):
 
         # return only the array, not full dictionary
         # can get away with just .values() since using OrderedDict
-        return list(dict_output.values())
+        return dict_output.values()

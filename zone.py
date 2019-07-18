@@ -140,7 +140,7 @@ class Zone:
             abundances = {'empty' : 0.0}
 
         for e in elements:
-            if e in iter(abundances.keys()):
+            if e in abundances.keys():
                 self.initial_abundances[e] = abundances[e]
             elif e == 'H':
                 self.initial_abundances[e] = 0.75*(1.0 - self.Z)
@@ -545,7 +545,7 @@ class Zone:
             # these are fractional outflow rates:
             self.Mdot_out             = self._interpolate_tabulated_outflow('m_tot')     # get total outflow rate
 
-            for e in list(self.abundances.keys()):
+            for e in self.abundances.keys():
                 self.Mdot_out_species[e]  = self._interpolate_tabulated_outflow(e)       # for each species
 
             if config.zone.mass_outflow_method == 2: # outflow depends on sfr
@@ -553,19 +553,19 @@ class Zone:
                 # multiply by SFR and current total amount of each species
                 self.Mdot_out = self.Mdot_out * self.Mdot_sf * self.M_gas
 
-                for e in list(self.Mdot_out_species.keys()):
+                for e in self.Mdot_out_species.keys():
                     self.Mdot_out_species[e] = self.Mdot_out_species[e] * self.Mdot_sf * (self.M_gas * self.abundances[e])
 
             else: # outflow is a fixed fraction of injection - use mass loading factor for total, H, and He
                 self.Mdot_out = config.zone.mass_loading_factor * (self.M_sf / self.dt)
 
-                for e in list(self.abundances.keys()):
+                for e in self.abundances.keys():
                     self.Mdot_out_species[e] = (self.Mdot_ej_masses[e] + self.SN_ej_masses[e]) / self.dt # converted to a rate for consistency
 
-                if 'H' in list(self.Mdot_out_species.keys()):
+                if 'H' in self.Mdot_out_species.keys():
                     self.Mdot_out_species['H']   = self.Mdot_out * self.abundances['H']
 
-                if 'He' in list(self.Mdot_out_species.keys()):
+                if 'He' in self.Mdot_out_species.keys():
                     self.Mdot_out_species['He']  = self.Mdot_out * self.abundances['He']
 
         return
@@ -986,7 +986,7 @@ class Zone:
 
         self._accumulate_summary_data()
 
-        ncol = np.size(list(self._summary_data.keys()))
+        ncol = np.size(self._summary_data.keys())
 
         if self._summary_output_number == 0: # print the header only once
             header = " " + " ".join(list(self._summary_data.keys())) + "\n"

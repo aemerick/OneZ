@@ -278,8 +278,8 @@ class Star(StarParticle):
           (check_mass and (self.M_o > config.stars.SNIa_candidate_mass_bounds[0] and\
            self.M_o < config.stars.SNIa_candidate_mass_bounds[1] and self.M == 0.0))) :
 
-            if len(list(self.wind_ejecta_abundances.keys())) > 0:
-                yields = phys.SNIa_yields(list(self.wind_ejecta_abundances.keys()))
+            if len(self.wind_ejecta_abundances.keys()) > 0:
+                yields = phys.SNIa_yields(self.wind_ejecta_abundances.keys())
 
                 i = 0
                 for e in self.sn_ejecta_masses.keys():
@@ -297,22 +297,22 @@ class Star(StarParticle):
         if not config.stars.use_snII:
             return
 
-        if len(list(self.wind_ejecta_abundances.keys())) > 0:
+        if len(self.wind_ejecta_abundances.keys()) > 0:
 
             if self.M_o < config.stars.direct_collapse_mass_threshold and\
                self.M_o > config.stars.SNII_mass_threshold :
 
                 if self.M_o < config.data.yields_mass_limits[1]:
                     yields =  SN_YIELD_TABLE.interpolate([self.M_o, self.Z],
-                                                          list(self.wind_ejecta_abundances.keys()))
+                                                          self.wind_ejecta_abundances.keys())
                 elif config.stars.extrapolate_snII_yields:
                     yields = np.asarray(SN_YIELD_TABLE.interpolate([config.data.yields_mass_limits[1] * _interpolation_hack, self.Z],
-                                                          list(self.wind_ejecta_abundances.keys())))
+                                                          self.wind_ejecta_abundances.keys()))
                     yields = yields * self.M_o / (config.data.yields_mass_limits[1] * _interpolation_hack)
 
             else:
                 # direct collapse supernova - no SN mass injection
-                yields = np.zeros(len(list(self.sn_ejecta_masses.keys())))
+                yields = np.zeros(len(self.sn_ejecta_masses.keys()))
 
             i = 0
             for e in self.sn_ejecta_masses.keys():
@@ -459,18 +459,18 @@ class Star(StarParticle):
         if( self.M_o < config.data.yields_mass_limits[1] ):
 
             yields = np.asarray(WIND_YIELD_TABLE.interpolate([self.M_o, self.Z],
-                                                              list(self.wind_ejecta_abundances.keys())))
+                                                              self.wind_ejecta_abundances.keys()))
         elif (config.stars.use_massive_star_yields):
             # use yields from PARSEC massive star yields
             yields = np.asarray(MASSIVE_STAR_YIELD_TABLE.interpolate([self.M_o, self.Z],
-                                                                     list(self.wind_ejecta_abundances.keys())))
+                                                                     self.wind_ejecta_abundances.keys()))
 
         else:
             #
             # For stars off of the grid, scale most massive star
             # to current mass.
             #
-            yields = np.asarray(WIND_YIELD_TABLE.interpolate([config.data.yields_mass_limits[1]*_interpolation_hack, self.Z], list(self.wind_ejecta_abundances.keys())))
+            yields = np.asarray(WIND_YIELD_TABLE.interpolate([config.data.yields_mass_limits[1]*_interpolation_hack, self.Z], self.wind_ejecta_abundances.keys()))
             yields = yields * self.M_o / (config.data.yields_mass_limits[1] * _interpolation_hack)
 
 
@@ -559,7 +559,7 @@ class Star(StarParticle):
 
         mass = OrderedDict()
 
-        for k in list(self.wind_ejecta_abundances.keys()):
+        for k in self.wind_ejecta_abundances.keys():
             mass[k] = self.wind_ejecta_abundances[k] * self.properties['M_wind_total']
 
         return mass
@@ -688,7 +688,7 @@ class StarList:
             _star_subset = self.stars_iterable
 
         if not subset_condition == None:
-            for key in list(subset_condition.keys()):
+            for key in subset_condition.keys():
                 _star_subset = self._get_subset( _star_subset, subset_condition[key])
 
         if name == 'mass' or name == 'Mass' or name == 'M':
@@ -733,7 +733,7 @@ class StarList:
             _star_subset = self.stars_iterable
 
 
-        all_keys = [list(x.properties.keys()) for x in _star_subset]
+        all_keys = [x.properties.keys() for x in _star_subset]
         unique_keys = np.unique([item for sublist in all_keys for item in sublist])
 
         if mode == 'unique':   # get all unique keys from all stars in set
