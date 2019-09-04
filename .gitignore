@@ -64,6 +64,7 @@ target/
 
 # local things
 testing/
+runs/
 
 # others
 *.png
