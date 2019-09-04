@@ -75,7 +75,7 @@ class StarParticle:
             self.age = age
 
             if (t_now - self.age) != self.tform:
-                print("Supplied Particle age and formation time do not agree with current time")
+                _my_print("Supplied Particle age and formation time do not agree with current time")
 
             self.tform = t_now - self.age
 

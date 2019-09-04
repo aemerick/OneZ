@@ -223,6 +223,7 @@ class _zone_parameters(_parameters):
         self.optimize            = True
 
         self.constant_metallicity = False               # Use fixed Z for gas
+        self.minimum_star_particle_mass = -1            # when > 0, adds all stars < this into one bin per timestep
 
         # assert time units here
 

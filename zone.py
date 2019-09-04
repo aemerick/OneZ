@@ -467,13 +467,36 @@ class Zone:
             star_masses = config.zone.imf.sample(M = M_sf)
             M_sf = np.sum(star_masses)
 
-            # add each new star to the star list
-            ids = np.zeros(np.size(star_masses))
-            for i,m in enumerate(star_masses):
-                ids[i] = self._assign_particle_id()
-                self.all_stars.add_new_star( star.Star(M=m, Z=self.Z,
-                                             abundances=self.abundances,
-                                             tform=self.t,id=ids[i]))
+            if config.zone.minimum_star_particle_mass > 0:
+
+                select       = star_masses > config.zone.minimum_star_particle_mass
+                i_unresolved = 0
+                if np.size(star_masses[star_masses<=config.zone.minimum_star_particle_mass]) > 0:
+                    i_unresolved = 1
+
+                # add each new star to the star list
+                ids = np.zeros(np.size(star_masses[select]) + i_unresolved)
+
+                for i,m in enumerate(star_masses[select]):
+                    ids[i] = self._assign_particle_id()
+                    self.all_stars.add_new_star( star.Star(M=m,Z=self.Z,
+                                                 abundances=self.abundances,
+                                                 tform=self.t,id=ids[i]))
+                if i_unresolved > 0:
+                    M_unresolved = np.sum( star_masses[star_masses<=config.zone.minimum_star_particle_mass])
+                    self.all_stars.add_new_star( star.Star(M=M_unresolved,Z=self.Z,
+                                                 abundances=self.abundances,tform=self.t,
+                                                 id= ids[i], star_type = "unresolved_star"))
+
+            else:
+                # add each new star to the star list
+                ids = np.zeros(np.size(star_masses))
+
+                for i,m in enumerate(star_masses):
+                    ids[i] = self._assign_particle_id()
+                    self.all_stars.add_new_star( star.Star(M=m, Z=self.Z,
+                                                 abundances=self.abundances,
+                                                 tform=self.t,id=ids[i]))
 
         return M_sf
 
@@ -875,11 +898,11 @@ class Zone:
         Pickle current simulation
         """
 
-        name = config.io.pickle_output_basename + "_%00004i"%(self.pickle_output_number)
+        name = str(config.io.pickle_output_basename + "_%00004i"%(self.pickle_output_number))
 
         _my_print("Writing full dump output as " + name + " at time t = %4.4f"%(self.t))
 
-        pickle.dump( self , open(name, "w"), -1)
+        pickle.dump( self , open(name, "wb"), -1)
 
         self.pickle_output_number += 1
 
@@ -998,7 +1021,10 @@ class Zone:
 
 
         fmt = "%5.5E "*ncol + "\n"
-        f.write(fmt%(  tuple(self._summary_data.values()) ))
+#        output_val  = list(self._summary_data.values())
+#        f.write(fmt% ())
+        f.writelines("%5.5E "% x for x in self._summary_data.values() )
+        f.write("\n")
 
         self._summary_output_number += 1
         self._summary_data.clear()
