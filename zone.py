@@ -349,8 +349,9 @@ class Zone:
             lifetimes = self.all_stars.property_asarray('lifetime','star')
 
             if np.size(lifetimes) > 1:
+                max_dt       = config.zone.max_dt  * const.Myr / config.units.time
                 min_lifetime = np.min( lifetimes ) / (config.units.time)
-                self.dt      = min_lifetime / (1.0 * config.zone.timestep_safety_factor)
+                self.dt      = np.min(  [min_lifetime / (1.0 * config.zone.timestep_safety_factor), max_dt] )
 
         return
 
@@ -476,13 +477,20 @@ class Zone:
 
                 # add each new star to the star list
                 ids = np.zeros(np.size(star_masses[select]) + i_unresolved)
+                if np.size(ids) == 1:
+                    ids = [ids]
 
+                i = 0
                 for i,m in enumerate(star_masses[select]):
                     ids[i] = self._assign_particle_id()
                     self.all_stars.add_new_star( star.Star(M=m,Z=self.Z,
                                                  abundances=self.abundances,
                                                  tform=self.t,id=ids[i]))
                 if i_unresolved > 0:
+                    if i > 0:
+                        i = i + 1
+
+                    ids[i] = self._assign_particle_id()
                     M_unresolved = np.sum( star_masses[star_masses<=config.zone.minimum_star_particle_mass])
                     self.all_stars.add_new_star( star.Star(M=M_unresolved,Z=self.Z,
                                                  abundances=self.abundances,tform=self.t,

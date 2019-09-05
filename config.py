@@ -123,7 +123,8 @@ class _zone_parameters(_parameters):
             3) SFH table provided using SFH_filename parameter where
                either two columns are provided, time and SFR, or
                time and stellar mass. Column headers must be named
-               appropriately as ("time" or "SFR" or "mass").
+               appropriately as ("t" or "SFR" or "mass"). Time is assumed to be in Myr
+               and SFR is assumed to be in Msun / yr (regardless of code units).
 
          use_SF_mass_reservoir (bool , optional) : One of two ways to deal with low
              SFR's to ensure accurate sampling of the IMF (see the second
@@ -185,7 +186,7 @@ class _zone_parameters(_parameters):
         self.alpha                   = self.imf.alpha
 
         self.star_formation_method    = 1           # 0, 1, 2, 3, 4
-        self.SFR_filename             = "SFR.in"
+        self.SFR_filename             = "SFR.in"    # t in Myr,   SFR in Msun / yr
         self.constant_SFR             = 10.0        # code mass / code time
         self.outflow_filename         = "mass_outflow.in"
 
@@ -215,6 +216,7 @@ class _zone_parameters(_parameters):
         self.t_o                      = 0.0             # Myr
         self.t_final                  = 1.0E4           # Myr
         self.dt                       = 1.0             # Myr
+        self.max_dt                   = 100.0           # Myr (max dt to use when adaptive)
         self.adaptive_timestep        = True
         self.timestep_safety_factor   = 4
 
