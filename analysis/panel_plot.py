@@ -2,8 +2,87 @@ import matplotlib.pyplot as plt
 from astropy import units as u
 from onezone.analysis import analysis_tools
 import numpy as np
+
+import os
+import sys
 #
 #
+
+ejection_dict = {}
+for e in ['O','Mg','Fe']:
+    ejection_dict[e] = 1.0 #(1.0 - 0.95)
+for e in ['Ba','N']:
+    ejection_dict[e] = (1.0 - 0.6)
+for e in ['H','He']:
+    ejection_dict[e] = 1.0
+
+fake_yield={}
+fake_yield['Eu'] = 8.0E-5 # * (1.0-0.95)
+
+def plot_2D(data, yname, xname):
+
+    xlabel = xname
+    ylabel = yname
+
+    if "over" in yname:
+        ynum, ydenom = yname.split("_over_")
+
+        if ynum in list(fake_yield.keys()):
+            ynum_mass = fake_yield[ynum] * np.ones(np.size(data['t']))
+        else:
+            ynum_mass = data[ynum+'_mass']*ejection_dict[ynum]
+
+        ydenom_mass = data[ydenom+'_mass']*ejection_dict[ydenom]
+
+        y = analysis_tools.abundance_ratio_array(ynum, ynum_mass,
+                                                 ydenom, ydenom_mass,
+                                             input_type = "mass")
+        ylabel = r"["+ynum+"/"+ydenom+"]"
+
+        select = np.logical_not(np.isnan(y))
+        ylim = (-4,4)
+        if ydenom == 'H':
+            ylim = (-6,0)
+
+    else:
+        y = data[yname]
+        select = np.array([True]*np.size(y))
+        ylim = (np.min(y),np.max(y))
+
+    if "over" in xname:
+        xnum,xdenom = xname.split("_over_")
+        x = analysis_tools.abundance_ratio_array(xnum, data[xnum+'_mass']*ejection_dict[xnum],
+                                                 xdenom, data[xdenom+'_mass']*ejection_dict[xdenom],
+                                             input_type = "mass")
+        xlabel = r"["+xnum+"/"+xdenom+"]"
+        select = select*np.logical_not( np.isnan(x))
+        xlim = (-3,3)
+        if xdenom == 'H':
+            xlim = (-6,0)
+    else:
+        x = data[xname]
+        select = select* np.array([True]*np.size(x))
+        xlim = (np.min(x),np.max(x))
+
+    x = x[select]
+    y = y[select]
+
+    fig, ax = plt.subplots()
+    fig.set_size_inches(6,6)
+    ax.plot(x,y,lw=3,color='black',ls='-')
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
+    plt.tight_layout()
+
+    fig.savefig(yname+ "_vs_"+ xname + ".png")
+    plt.close()
+    return
+
+
 def panel_plot(xname, yname, data, dim = [0,0], logscale = True,
                 xlabel = '-', ylabel = '-', normalize = False, *args, **kwargs):
 
@@ -97,3 +176,12 @@ def panel_plot(xname, yname, data, dim = [0,0], logscale = True,
 
     return fig, ax
         
+
+
+if __name__ == "__main__":
+
+    print(sys.argv)
+    if sys.argv[1] == "2D":
+        data = np.genfromtxt( str(sys.argv[2]), names = True)
+
+        plot_2D( data, str(sys.argv[3]), str(sys.argv[4]))
