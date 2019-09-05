@@ -44,6 +44,14 @@ def renormalize_abundances(x, e1, e2, input_norm = 'solar', output_norm = None):
     return x
 
 
+def abundance_ratio_array(x1e, x1, x2e, x2, input_type = 'abundance', normalize='solar'):
+
+    if np.size(x1) != np.size(x2):
+        print("Arrays are not of equal size")
+        raise ValueError
+
+    return np.array([  abundance_ratio( (x1e,val1), (x2e,val2), input_type=input_type, normalize=normalize) for val1,val2 in zip(x1,x2)])
+
 
 def abundance_ratio(x1, x2, input_type = 'abundance', normalize = 'solar'):
     """
