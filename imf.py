@@ -57,14 +57,14 @@ class IMF(object):
 
                bin = _find_bin(rnum, self._tabulated_imf)
                stars[i] = 10.0**(bin * self._tabulated_dm + self._m_o)
-               total_mass = np.sum(stars)
+               total_mass += stars[i]
 
            # remove trailing stars
-           stars = stars[0:i]
+#           stars = stars[0:i]
 
            # check if we need to remove last star
            if np.size( stars ) > 1:
-               if np.abs( (total_mass) - M) < np.abs(np.sum(stars[:i]-M)):
+               if np.abs( (total_mass) - M) > np.abs(np.sum(stars[0:i-1])-M):
                    stars = stars[0 : i -1]
 
         return stars
