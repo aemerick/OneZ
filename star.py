@@ -395,11 +395,11 @@ class Star(StarParticle):
             do_wind = True
 
             if (self.M_o < config.stars.AGB_wind_phase_mass_threshold) and config.stars.use_AGB_wind_phase:
-                if self.age + dt < self.properties['self.age_agb'] / config.units.time:
+                if self.age + dt < self.properties['age_agb'] / config.units.time:
                     do_wind = False
                     wind_lifetime = 0.0
                 else:
-                    wind_lifetime = (self.properties['lifetime'] - self.properties['self.age_agb'])
+                    wind_lifetime = (self.properties['lifetime'] - self.properties['age_agb'])
 
             else: # else have star wind on for entire lifetime
                 wind_lifetime = self.properties['lifetime']
@@ -479,16 +479,23 @@ class Star(StarParticle):
 
     def _assign_properties(self):
 
+        # list of properties assigned in this function (remember to update!!)
         p_list = ['luminosity', 'radius',
-                  'lifetime'  , 'self.age_agb', 'L_FUV', 'L_LW',
-                  'Q1', 'Q2', 'E_Q1', 'E_Q2']
+                  'lifetime'  , 'age_agb', 'L_FUV', 'L_LW', 'agb_phase_length',
+                  'Q0', 'E0', 'Q1', 'E1', 'Mdot_wind', 'v_wind', 'M_wind_total']
+
+        if self.properties['type'] == 'unresolved_star':
+            self.Mdot_ej           = 0.0
+            for p in p_list:
+                self.properties[p] = 0.0
+            return
 
         L, T, R, lifetime, self.age_agb = SE_TABLE.interpolate([self.M_o,self.Z], ['L','Teff','R','lifetime','age_agb'])
         self.properties['luminosity']  = L * const.Lsun
         self.properties['Teff']        = T
         self.properties['R']           = R
         self.properties['lifetime']    = lifetime
-        self.properties['self.age_agb']     = self.age_agb
+        self.properties['age_agb']     = self.age_agb
         self.properties['agb_phase_length']  = lifetime - self.age_agb
 
 
@@ -554,6 +561,7 @@ class Star(StarParticle):
 
         self.properties['Mdot_wind'] = 0.0
         self.properties['v_wind']    = 0.0
+        return
 
     def wind_ejecta_masses(self):
 
