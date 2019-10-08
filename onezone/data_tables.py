@@ -16,6 +16,7 @@ from .constants import CONST as const
 #   --- but really bad hacks are fun!?!
 _possible_dirs = ['/mnt/xfs1/home/emerick/code/onezone/',
                  '/home/aemerick/code/onezone/']
+_possible_dirs = [_os.path.dirname(_os.path.abspath(__file__)) + '/../']
 for x in _possible_dirs:
     if (_os.path.exists(x)):
         install_dir = x
