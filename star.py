@@ -579,13 +579,32 @@ class Star(StarParticle):
         return self.sn_ejecta_masses
 
     def write_abundance(self, abundances):
+        """
+        Write star particle abundances to file. In principle, if homogenous one-zone
+        model is used this is not necessary as abundances will just be identical to gas
+        in zone and can be obtained by matching star particle formation time to
+        the abundance outputs in the summary files. However, this is useful when
+        summary file is not written to every time step OR in the future when
+        multi-zones are in use.
 
-        if not (config.io._abundance_output_filename is None):
+        In actuality this just adds the star to a buffer to limit IO
+        """
 
-            config.io._abundance_output_file.write("%6.6E %5i %6.6E %6.6E %6.6E"%(self.tform,self.id,self.M,self.Z,self.properties['lifetime']))
-            for e in config.zone.species_to_track:
-                config.io._abundance_output_file.write(" %6.6E"%(abundances[e]))
-            config.io._abundance_output_file.write("\n")
+        if not (config.io._abundance_buffer is None):
+
+            config.io._abundance_buffer.flush() # flush if needed
+
+            i = config.io._abundance_buffer.count
+            config.io._abundance_buffer.buffer[i][0] = self.tform
+            config.io._abundance_buffer.buffer[i][1] = self.id
+            config.io._abundance_buffer.buffer[i][2] = self.M
+            config.io._abundance_buffer.buffer[i][3] = self.Z
+            config.io._abundance_buffer.buffer[i][4] = self.properties['lifetime']
+
+            for ei,e in enumerate(config.zone.species_to_track):
+                config.io._abundance_buffer.buffer[i][ei+5] = abundances[e]
+
+            config.io._abundance_buffer.count += 1
 
         return
 
@@ -663,6 +682,8 @@ class StarList:
         number of stars is provided
         """
 
+        config.global_values.profiler.start_timer('add_new_star', True)
+
         if self._stars_optimized:
             #
             # add to last element in list
@@ -674,6 +695,7 @@ class StarList:
 
         self._N_stars += 1
 
+        config.global_values.profiler.end_timer('add_new_star')
         return
 
 
@@ -687,7 +709,10 @@ class StarList:
 
     def property_asarray(self, name, star_type = 'all', subset_condition = None):
 
+        config.global_values.profiler.start_timer('property_asarray', True)
+
         if self.N_stars == 0:
+            config.global_values.profiler.end_timer('property_asarray')
             return np.zeros(1)
 
         if not star_type == 'all':
@@ -723,6 +748,8 @@ class StarList:
         #
         # as can happen if there are no stars in subset
         #
+        config.global_values.profiler.end_timer('property_asarray')
+
         if len(array) == 0:
             if name == 'type':
                 return [None]
@@ -730,6 +757,9 @@ class StarList:
                 return np.zeros(1)
         else:
             return array
+
+
+
 
     def property_names(self, mode='unique', star_type = 'all'):
         if self.N_stars == 0:
@@ -766,7 +796,10 @@ class StarList:
         Returns iterable
         """
 
-        return [ x for x in self.stars_iterable if not expr(x) ]
+        config.global_values.profiler.start_timer('get_subset',True)
+        res = [ x for x in self.stars_iterable if not expr(x) ]
+        config.global_values.profiler.end_timer('get_subset')
+        return res
 
 #        return itertools.ifilterfalse( expr,  self.stars)
 

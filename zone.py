@@ -31,6 +31,7 @@ from . import imf  as imf
 from . import star as star
 from . import config as config
 from .constants import CONST as const
+from . import performance_tools as perf
 
 def restart(filename):
     """
@@ -68,6 +69,11 @@ class Zone:
 
 
     def __init__(self):
+
+        #if config.global_values.profile_performance:
+        config.global_values.profiler =\
+                        perf.PerformanceTimer(config.global_values.profile_performance)
+
 
         #
         # important values and stars
@@ -124,6 +130,7 @@ class Zone:
         self._compute_dt()
 
         self._update_globals()
+
 
         return
 
@@ -189,37 +196,53 @@ class Zone:
            outputs.
         """
 
-        while self.t < config.zone.t_final:
+        while self.t <= config.zone.t_final:
+
+            config.global_values.profiler.start_timer('compute_dt')
             self._compute_dt()
+            config.global_values.profiler.end_timer('compute_dt')
+
 
             #
             # Check if output conditions are met
             #
+            config.global_values.profiler.start_timer('check_output')
             self._check_output()
+            config.global_values.profiler.end_timer('check_output')
 
             #
             # I) Evolve stars, computing ejecta rates and abundances
             #
-
+            config.global_values.profiler.start_timer('evolve_stars')
             self._evolve_stars()
+            config.global_values.profiler.end_timer('evolve_stars')
 
             #
             # II) Sum up and store number of supernovae
             #
+            config.global_values.profiler.start_timer('accumulate_sn')
             self._accumulate_new_sn()
+            config.global_values.profiler.end_timer('accumulate_sn')
 
             #
             # III) Compute SFR and make new stars
             #
+            config.global_values.profiler.start_timer('compute_sfr')
             self._compute_sfr()
+            config.global_values.profiler.end_timer('compute_sfr')
+
+            config.global_values.profiler.start_timer('make_stars')
             self.M_sf = self._make_new_stars()
+            config.global_values.profiler.end_timer('make_stars')
 
             #
             # IV) Compute inflow and outflow
             #
+            config.global_values.profiler.start_timer('outflow_inflow_mdot')
             self._compute_outflow()
             self._compute_inflow()
             self._compute_mdot_dm()
+            config.global_values.profiler.end_timer('outflow_inflow_mdot')
 
             #
             # V) Add/remove gas from zone due to inflow,
@@ -260,10 +283,17 @@ class Zone:
             #
             # VIII) End of evolution, increment counters
             #
+            config.global_values.profiler.start_timer('update_globals')
             self.t += self.dt
             self._cycle_number += 1
             self._update_globals()
+            config.global_values.profiler.end_timer('update_globals')
 
+            outstr = "======================================================\n" +\
+                     "===== Cycle = %00005i      time = %5.5E    =======\n"%(self._cycle_number,self.t) +\
+                     "======================================================\n"
+
+            config.global_values.profiler.write_performance(outstr=outstr)
 
         #
         # At end of simulation, force summary and dump
@@ -465,7 +495,9 @@ class Zone:
 
             # sample from IMF and sum sampled stars
             # to get actual star formation mass
+            config.global_values.profiler.start_timer('make_stars-imf',True)
             star_masses = config.zone.imf.sample(M = M_sf)
+            config.global_values.profiler.end_timer('make_stars-imf')
             M_sf = np.sum(star_masses)
 
             if config.zone.minimum_star_particle_mass > 0:
@@ -481,6 +513,7 @@ class Zone:
                     ids = [ids]
 
                 i = 0
+                config.global_values.profiler.start_timer('make_stars-add',True)
                 for i,m in enumerate(star_masses[select]):
                     ids[i] = self._assign_particle_id()
                     self.all_stars.add_new_star( star.Star(M=m,Z=self.Z,
@@ -496,6 +529,7 @@ class Zone:
                                                  abundances=self.abundances,tform=self.t,
                                                  id= ids[i], star_type = "unresolved_star"))
 
+                config.global_values.profiler.end_timer('make_stars-add')
             else:
                 # add each new star to the star list
                 ids = np.zeros(np.size(star_masses))
@@ -666,10 +700,14 @@ class Zone:
             raise ValueError
 
         if t > self._tabulated_SFR_t[-1]:
-            _my_print("Current time above maximum time in tabulated SFR %3.3E %3.3E"%(t, self._tabulated_SFR_t[-1]))
-            _my_print("Assuming this is expected behavior. Saving and exiting.")
-            self._check_output(force = True)
-            raise ValueError
+            if t - 0.5*self.dt <= self._tabulated_SFR_t[-1]:
+                # likely on final time step
+                t = self.t
+            else:
+                _my_print("Current time above maximum time in tabulated SFR %3.3E %3.3E"%(t, self._tabulated_SFR_t[-1]))
+                _my_print("Assuming this is expected behavior. Saving and exiting.")
+                self._check_output(force = True)
+                raise ValueError
 
         return self._SFR_interpolation_function(t)
 
@@ -851,31 +889,32 @@ class Zone:
         # Save star parameters as lists of values
         #
         star_dict = OrderedDict()
-        star_dict['masses'] = self.all_stars.property_asarray('mass')
-        star_dict['initial_mass'] = self.all_stars.property_asarray('birth_mass')
-        star_dict['metallicity']  = self.all_stars.property_asarray('metallicity')
-        star_dict['id']           = self.all_stars.property_asarray('id')
-        star_dict['type']         = self.all_stars.property_asarray('type')
-        star_dict['age']          = self.all_stars.property_asarray('age')
+        _gather_properties = { 'mass' : 'mass', 'birth_mass' : 'birth_mass',
+                               'metallicity' : 'metallicity', 'age' : 'age'}
 
-        Nstars = np.size(star_dict['masses'])
+        for k in _gather_properties:
+            star_dict[k] = self.all_stars.property_asarray( _gather_properties[k])
+
+        star_dict['type']         = self.all_stars.property_asarray('type').astype('S')
+
+        Nstars = np.size(star_dict['mass'])
 
         if Nstars > 1:
             # there has to be a better way to do this... but various iterations
             # of the below did not work b/c of the different variable types...
             # doing this the slow way......
-            star_data = [None]*Nstars
-            for i in np.arange(Nstars):
-                star_data[i] = (star_dict['id'][i], star_dict['type'][i],
-                                star_dict['initial_mass'][i],
-                                star_dict['masses'][i], star_dict['age'][i],
-                                star_dict['metallicity'][i])
-            star_data = np.array(star_data, dtype = [ ('id',star_dict['id'].dtype),
-                                                      ('type',star_dict['type'].dtype),
-                                                      ('birth_mass',star_dict['initial_mass'].dtype),
-                                                      ('mass',star_dict['masses'].dtype),
-                                                      ('age',star_dict['age'].dtype),
-                                                      ('metallicity',star_dict['metallicity'].dtype)])
+        #    star_data = [None]*Nstars
+        #    for i in np.arange(Nstars):
+        #        star_data[i] = (star_dict['id'][i], star_dict['type'][i],
+        #                        star_dict['initial_mass'][i],
+        #                        star_dict['masses'][i], star_dict['age'][i],
+        #                        star_dict['metallicity'][i])
+        #    star_data = np.array(star_data, dtype = [ ('id',star_dict['id'].dtype),
+        #                                              ('type',star_dict['type'].dtype),
+        #                                              ('birth_mass',star_dict['initial_mass'].dtype),
+        #                                              ('mass',star_dict['masses'].dtype),
+        #                                              ('age',star_dict['age'].dtype),
+        #                                              ('metallicity',star_dict['metallicity'].dtype)])
 
 #            star_data = np.column_stack(
 #                                        (star_dict['masses'].astype('float64'), star_dict['initial_mass'].astype('float64'),
@@ -888,11 +927,14 @@ class Zone:
 #                                                                           ('type', np.dtype('str')),
 #                                                                           ('age', np.dtype('float64'))])
 
+            for k in star_dict.keys():
+                star_grp.create_dataset(k, data=star_dict[k])
         else:
             Nstars    = 0
             star_data = np.zeros(1)
+            for k in star_dict.keys():
+                star_grp.create_dataset(k, data = star_data)
 
-        star_grp.create_dataset(None, data = star_data)
         star_grp.attrs['number_of_stars'] = Nstars
 
         hf.close()

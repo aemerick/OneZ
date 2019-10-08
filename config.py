@@ -3,10 +3,12 @@ __author__ = "aemerick <emerick@astro.columbia.edu>"
 # --- external ---
 from collections import OrderedDict
 import numpy as np
+import h5py
 
 # --- internal ---
 from .constants import CONST as const
 from . import imf as imf
+from . import performance_tools as perf
 
 import os
 
@@ -20,9 +22,11 @@ class _parameters(object):
 
     def help(self):
         print(self.__doc__)
+        return
 
     def reset_parameters_to_default(self):
         self.__init__()
+        return
 
 class _globals(_parameters):
     """
@@ -32,6 +36,11 @@ class _globals(_parameters):
     def __init__(self):
 
         self.time = 0.0
+
+        self.profile_performance = False
+        self.profiler = None # perf.PerformanceTimer()
+
+        return
 
 global_values = _globals()
 
@@ -338,6 +347,88 @@ stars = _star_particle_parameters()
 #
 # ----------------- Input and Output --------------
 #
+class chunked_hdf5_buffer():
+
+    def __init__(self, filename, headers=None, compression = 'gzip',
+                                 chunks=None, maxshape=None, overwrite=True):
+
+        self.filename = filename
+
+        self.headers = headers
+
+        if maxshape is None:
+            # take a stab at maxshape
+            if self.headers is None:
+                self.maxshape = (None,None)
+            else:
+                self.maxshape = (None, len(self.headers))
+
+        self.compression = compression
+
+        self.chunks = chunks
+        if self.chunks is None:
+            if self.headers is None:
+                print("HDF5 buffer error. Must provide headers or chunk size")
+                raise ValueError
+            else:
+                self.chunks = (1000, len(headers))
+
+        if (not overwrite) and os.path.isfile(self.filename):
+            self.h5f     = h5py.File(filename, 'a')
+            self.dataset = self.h5f['abundances']
+        else:
+            self.h5f     = h5py.File(filename, 'w')
+            self.h5f.attrs.create('names', self.headers)
+            self.dataset = self.h5f.create_dataset("abundances",
+                                                    shape=(0,self.chunks[1]),
+                                                    maxshape=self.maxshape,
+                                                    compression=self.compression,
+                                                    chunks=self.chunks)
+        self.count  = 0
+        self._empty_element_flag = -9999.0
+        self.buffer = np.ones(self.chunks) * self._empty_element_flag
+        return
+
+    def flush(self, force=False):
+
+        old_shape = self.dataset.shape
+
+        if not force:
+            if not (self.count == (self.chunks[0] - 1)):
+                return
+
+        new_shape = (old_shape[0] + self.count,old_shape[1])
+        self.resize(new_shape)
+
+        self.dataset[old_shape[0]:new_shape[0],] = self.buffer[:self.count,]
+
+        self.h5f.flush() # actually write to file
+
+        self.reset_buffer()
+
+        return
+
+    def reset_buffer(self):
+        self.count = 0
+        self.buffer[:] = self._empty_element_flag
+        return
+
+    def resize(self, new_size = None):
+        if (new_size is None):
+            new_size = (self.dataset.shape[0] + self.chunks[0], self.dataset.shape[1])
+        self.dataset.resize(new_size)
+        return
+
+    def close(self):
+
+        if self.count > 0: # still some data that hasn't been written
+            self.flush(force=True)
+        else:
+            self.h5f.flush()
+
+        self.h5f.close()
+        return
+
 class _io_parameters(_parameters):
 
     def __init__(self):
@@ -353,45 +444,59 @@ class _io_parameters(_parameters):
         self.dt_summary               = 0.0
         self.cycle_summary            = 0
 
-        self._abundance_output_filename = None # 'abundances.dat'
+        self._abundance_buffer = None
+        self.abundance_output_filename = None # 'abundances.dat'
 
         self.radiation_binned_output  = 0 # bin rad in mass bins - expensive
 
+        return
+
+    def _clean_up(self):
+
+        if not (self._abundance_buffer is None):
+            self._abundance_buffer.close()
+
+        return
 
     @property
     def abundance_output_filename(self):
         return self._abundance_output_filename
 
     @abundance_output_filename.setter
-    def abundance_output_filename(self, value):
-        self._abundance_output_filename = value
-
+    def abundance_output_filename(self,value):
+        self._abundance_output_filename=value
         self._initialize_abundance_output()
-
-        return
-
-    def _clean_up(self):
-
-        self._abundance_output_file.close()
-
         return
 
     def _initialize_abundance_output(self):
+        if not (self._abundance_buffer is None):
+            print("Error: Abundance output filename already initialized")
+            raise RuntimeError
 
-        if self._abundance_output_filename is None:
-            return
-
-        elif os.path.isfile(self._abundance_output_filename):
-            self._abundance_output_file = open(self._abundance_output_filename,'a')
-        else:
-            self._abundance_output_file = open(self._abundance_output_filename,'w')
-
-            self._abundance_output_file.write("# t id M Z lifetime")
-            for e in zone.species_to_track:
-                self._abundance_output_file.write(" " + (e))
-            self._abundance_output_file.write("\n")
-
+        if not (self.abundance_output_filename is None):
+            headers = ['tform','id','M','Z','lifetime'] + zone.species_to_track
+            self._abundance_buffer = chunked_hdf5_buffer(self.abundance_output_filename,
+                                                         headers = headers,
+                                                         compression = 'gzip',
+                                                         chunks = (10000,len(headers)))
         return
+
+#    def _initialize_abundance_output(self):
+#
+#        if self._abundance_output_filename is None:
+#            return
+#
+#        elif os.path.isfile(self._abundance_output_filename):
+#            self._abundance_output_file = open(self._abundance_output_filename,'a')
+#        else:
+#            self._abundance_output_file = open(self._abundance_output_filename,'w')
+#
+#            self._abundance_output_file.write("# t id M Z lifetime")
+#            for e in zone.species_to_track:
+#                self._abundance_output_file.write(" " + (e))
+#            self._abundance_output_file.write("\n")
+#
+#        return
 
 io  = _io_parameters()
 

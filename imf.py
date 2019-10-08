@@ -1,6 +1,8 @@
 # -- external --
 import numpy as np
 
+from onezone.cython_ext import sample_imf as c_sample_imf
+
 class IMF(object):
 
     def __init__(self, M_min = 1.0 , M_max = 100.0):
@@ -60,7 +62,14 @@ class IMF(object):
                total_mass += stars[i]
 
            # remove trailing stars
-#           stars = stars[0:i]
+           stars = stars[0:i]
+
+           test_stars = c_sample_imf.sample_imf(self._tabulated_imf, M, 0,
+                                     self._tabulated_dm, self._M_min, self._M_max,
+                                     np.size(self._tabulated_imf))
+           test_stars = test_stars[ test_stars>0 ]
+           
+           print(np.sum(test_stars), test_stars)
 
            # check if we need to remove last star
            if np.size( stars ) > 1:
