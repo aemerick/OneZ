@@ -41,12 +41,13 @@ def sample_imf(double[:] table, double M,
     cdef double total_mass = 0.0
     cdef double rnum = 0.0
     cdef int bin = 0
+    cdef double m_o = np.log10(IMF_start)
 
     while total_mass < M:
         i = i + 1
         rnum = np.random.rand()
         bin  = find_bin(table, rnum, 0, table_points, table_points)
-        stars[i]      = 10.0**(bin * IMF_dm + IMF_start)
+        stars[i]      = 10.0**(bin * IMF_dm + m_o)
         total_mass    += stars[i]
 
     return stars
