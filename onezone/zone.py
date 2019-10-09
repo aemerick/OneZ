@@ -28,7 +28,10 @@ except:
 
 # internal
 from . import imf  as imf
-from . import star as star
+
+#from . import star as star
+from onezone.cython_ext import cython_star as star
+
 from . import config as config
 from .constants import CONST as const
 from . import performance_tools as perf
