@@ -5,7 +5,17 @@ the cosmological hydrodynamics code Enzo. Intended use (for now) is to quickly
 and cheaply characterize the effect of modifying free parameters in the 
 chemical and stellar model without running expensive hydro simulations.
 
-Current state (Oct 2016):
+Current state (Fall 2019):
+
+Many improvements to code has been made, with some examples on how to run
+many models in parallel to speed up tests of various parameters and things.
+Currently working on porting the slowest chunks of the code to cython to 
+get some actual speed improvements to be able to run this for more useful
+science. Things are still very rough, with changes to the API at all levels
+still likely (backwards compatability will not be garunteed for a while). 
+Code ported to Python3 now (in python3 branch at the moment).
+
+Prior state (Oct 2016):
 
 As is, the star-by-star modelling in this onezone code is highly inefficient
 (there is a reason why SSP's is the standard protocol!!!). However, we
