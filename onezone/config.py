@@ -7,7 +7,7 @@ import h5py
 
 # --- internal ---
 from .constants import CONST as const
-from . import imf as imf
+#from . import imf as imf
 from . import performance_tools as perf
 
 import os
@@ -189,10 +189,15 @@ class _zone_parameters(_parameters):
         self.initial_abundances       = None
         self.track_massive_star_ejecta_mass = 25.0
 
-        self.imf                     = imf.salpeter()
-        self.M_min                   = self.imf.M_min
-        self.M_max                   = self.imf.M_max
-        self.alpha                   = self.imf.alpha
+        #import imf
+        #print(dir(imf))
+        self.imf                     = None # imf.salpeter()
+        #self.M_min                   = None # self.imf.M_min
+        #self.M_max                   = None # self.imf.M_max
+        #self.alpha                   = None # self.imf.alpha
+        self.__M_max = None
+        self.__M_min = None
+        self.__alpha = None
 
         self.star_formation_method    = 1           # 0, 1, 2, 3, 4
         self.SFR_filename             = "SFR.in"    # t in Myr,   SFR in Msun / yr
