@@ -10,7 +10,7 @@ import subprocess
 #from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Build import cythonize
-from Cython.Distutils import build_ext
+#from Cython.Distutils import build_ext
 
 
 args = sys.argv[1:]
@@ -25,22 +25,18 @@ if "cleanall" in args:
         subprocess.Popen("rm -rf " + p + "*.c", shell=True, executable="/bin/bash")
         subprocess.Popen("rm -rf " + p + "*.so", shell=True, executable="/bin/bash")
 
-    # Now do a normal clean
-    sys.argv[1] = "clean"
 
-# We want to always use build_ext --inplace
-if args.count("build_ext") > 0 and args.count("--inplace") == 0:
-    sys.argv.insert(sys.argv.index("build_ext")+1, "--inplace")
+    sys.exit()
 
 cython_extensions = [
     Extension(
           "onezone.cython_ext.sample_imf",
           ["onezone/cython_ext/sample_imf.pyx"],
+        ),
+    Extension(
+           "onezone.cython_ext.cython_star",
+          ["onezone/cython_ext/cython_star.pyx"],
         )
-#    Extension(
-#           "onezone.cython_ext.cython_star",
-#          ["onezone/cython_ext/cython_star.pyx"],
-#        )
 ]
 
 setup(
