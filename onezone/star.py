@@ -362,7 +362,7 @@ class Star(StarParticle):
         if not 'q' in photon_type:
             if photon_type == 'HI':
                 photon_type = 'q0'
-            elif photon_tupe == 'HeI':
+            elif photon_type == 'HeI':
                 photon_type = 'q1'
 
         if self.properties.haskey(photon_type):
