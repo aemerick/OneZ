@@ -1,6 +1,8 @@
 # -- external --
 import numpy as np
 
+
+from . import config as config
 from onezone.cython_ext import sample_imf as c_sample_imf
 
 class IMF(object):
@@ -49,28 +51,30 @@ class IMF(object):
 
         elif (not (M is None)) and N is None:
 
-           stars = np.zeros(int(M / self._M_min))
-           i = -1
+           #config.global_values.profiler.start_timer('py_sample_imf',True)
+           #stars = np.zeros(int(M / self._M_min))
+           #i = -1
            total_mass = 0.0
-
-           while total_mass <= M:
-               i = i + 1
-               rnum = np.random.rand()
-
-               bin = _find_bin(rnum, self._tabulated_imf)
-               stars[i] = 10.0**(bin * self._tabulated_dm + self._m_o)
-               total_mass += stars[i]
-
+           #
+           #while total_mass <= M:
+           #    i = i + 1
+           #    rnum = np.random.rand()
+           #
+           #    bin = _find_bin(rnum, self._tabulated_imf)
+           #    stars[i] = 10.0**(bin * self._tabulated_dm + self._m_o)
+           #    total_mass += stars[i]
+           #
            # remove trailing stars
-           stars = stars[0:i]
+           #stars = stars[0:i]
+           #config.global_values.profiler.end_timer('py_sample_imf')
 
-           test_stars = c_sample_imf.sample_imf(self._tabulated_imf, M, 0,
+           #config.global_values.profiler.start_timer('c_sample_imf',True)
+           stars = np.asarray(c_sample_imf.sample_imf(self._tabulated_imf, M, 0,
                                      self._tabulated_dm, self._M_min, self._M_max,
-                                     np.size(self._tabulated_imf))
-           test_stars = test_stars[ test_stars>0 ]
-           
-           print(np.sum(test_stars), test_stars)
-
+                                     np.size(self._tabulated_imf)))
+           stars = stars[ stars>0 ]
+           #config.global_values.profiler.end_timer('c_sample_imf')
+           i     = np.size(stars)
            # check if we need to remove last star
            if np.size( stars ) > 1:
                if np.abs( (total_mass) - M) > np.abs(np.sum(stars[0:i-1])-M):
