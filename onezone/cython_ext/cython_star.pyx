@@ -7,8 +7,10 @@ _interpolation_hack = 0.999999999 # do this for now
 
 # --- external ---
 import numpy as np
+cimport numpy as np
+
 import gc
-from collections import OrderedDict
+#from collections import OrderedDict
 import itertools
 
 
@@ -39,8 +41,10 @@ cdef class StarParticle:
     cdef public int id
     cdef public dict properties, sn_ejecta_masses, wind_ejecta_abundances
 
-    def __init__(self, M = None, Z = None, abundances={'m_tot':1.0}, tform=0.0, id = 0, M_o = None,
-                      age = None, t_now = None):
+    def __init__(self, double M = -1.0, double Z = -1.0,
+                       dict abundances={'m_tot':1.0},
+                       double tform=0.0, int id = 0, double M_o = -1.0,
+                       double age = -1.0, double t_now = -1.0):
         """
         Initialize star particle with mass and metallicity. Particle
         properties are assigned using input M and Z to interpolate
@@ -57,11 +61,11 @@ cdef class StarParticle:
                 if tracking many. Default is 0
 
         """
-        if M is None or Z is None:
+        if M == -1.0 or Z == -1.0:
             raise ValueError("Must set values for mass and metallicity")
 
         self.M   = M
-        if M_o is None:
+        if M_o == -1.0:
             self.M_o = M
         else:
             self.M_o = M_o
@@ -70,10 +74,10 @@ cdef class StarParticle:
         self.tform = tform
         self.id    = id
 
-        if age is None and t_now is None:
+        if age == -1.0 and t_now == -1.0:
             self.age = 0.0
 
-        elif age is None:
+        elif age == -1.0:
             self.age = t_now - self.tform
 
         else:
@@ -97,9 +101,10 @@ cdef class StarParticle:
 
         return
 
-    def evolve(self, t, dt, ej_masses = {}, sn_masses = {},
-                            snII_counter = -9999, snIa_counter = -9999,
-                            special_accumulator={}):
+    cdef void evolve(self, double t, double dt, dict ej_masses = {},
+                           dict sn_masses = {},
+                           int snII_counter = -9999, int snIa_counter = -9999,
+                           dict special_accumulator={}):
         pass
 
     def _assign_properties(self):
@@ -116,7 +121,7 @@ cdef class Star(StarParticle):
 
     cdef public double Mdot_ej
 
-    def __init__(self, star_type = 'star', *args, **kwargs):
+    def __init__(self, str star_type = 'star', *args, **kwargs):
 
         super().__init__(*args, **kwargs)
 
@@ -130,9 +135,9 @@ cdef class Star(StarParticle):
         return
 
 
-    def evolve(self, double t, double dt, ej_masses = {}, sn_masses = {},
+    cpdef void evolve(self, double t, double dt, dict ej_masses = {}, dict sn_masses = {},
                             int snII_counter = -9999, int snIa_counter = -9999,
-                            special_accumulator={}):
+                            dict special_accumulator={}):
         """
         Evolve
         """
@@ -236,6 +241,8 @@ cdef class Star(StarParticle):
         #   1) winds
         #   2) SN explosion
         #
+        cdef str key
+
         if self.properties['type'] == 'star' or\
            self.properties['type'] == 'new_WD':
 
@@ -265,9 +272,9 @@ cdef class Star(StarParticle):
                 special_accumulator['m_massive'] += self.sn_ejecta_masses['m_metal']
 
 
-        return None
+        return
 
-    def set_SNIa_properties(self, check_mass = False):
+    cdef void set_SNIa_properties(self, bint check_mass = False):
         """
         If a SNIa candidate, sets SNIa ejecta masses in array. check_mass
         call is in place for versatility. One can set SNIa properties BEFORE turning
@@ -280,6 +287,11 @@ cdef class Star(StarParticle):
         if not config.stars.use_snIa:
             return
 
+
+        cdef np.ndarray yields
+        cdef int i = 0
+        cdef str e = '' # may not work
+
         if ((self.M_o > config.stars.SNIa_candidate_mass_bounds[0] and\
            self.M_o < config.stars.SNIa_candidate_mass_bounds[1] and (not check_mass)) or\
           (check_mass and (self.M_o > config.stars.SNIa_candidate_mass_bounds[0] and\
@@ -288,21 +300,26 @@ cdef class Star(StarParticle):
             if len(self.wind_ejecta_abundances.keys()) > 0:
                 yields = phys.SNIa_yields(self.wind_ejecta_abundances.keys())
 
-                i = 0
+
+
                 for e in self.sn_ejecta_masses.keys():
                     self.sn_ejecta_masses[e] = yields[i]
                     i = i + 1
                 #print "------------------------", self.sn_ejecta_masses
 
         else:
-            return NotImplementedError
+            raise NotImplementedError
 
-        return yields
+        return
 
-    def set_SNII_properties(self):
+    cdef void set_SNII_properties(self):
 
         if not config.stars.use_snII:
             return
+
+        cdef np.ndarray yields
+        cdef int i = 0
+        cdef str e = ''
 
         if len(self.wind_ejecta_abundances.keys()) > 0:
 
@@ -310,8 +327,8 @@ cdef class Star(StarParticle):
                self.M_o > config.stars.SNII_mass_threshold :
 
                 if self.M_o < config.data.yields_mass_limits[1]:
-                    yields =  SN_YIELD_TABLE.interpolate([self.M_o, self.Z],
-                                                          self.wind_ejecta_abundances.keys())
+                    yields =  np.asarray(SN_YIELD_TABLE.interpolate([self.M_o, self.Z],
+                                                          self.wind_ejecta_abundances.keys()))
                 elif config.stars.extrapolate_snII_yields:
                     yields = np.asarray(SN_YIELD_TABLE.interpolate([config.data.yields_mass_limits[1] * _interpolation_hack, self.Z],
                                                           self.wind_ejecta_abundances.keys()))
@@ -321,7 +338,7 @@ cdef class Star(StarParticle):
                 # direct collapse supernova - no SN mass injection
                 yields = np.zeros(len(self.sn_ejecta_masses.keys()))
 
-            i = 0
+
             for e in self.sn_ejecta_masses.keys():
                 self.sn_ejecta_masses[e] = yields[i]
                 i = i + 1
@@ -329,7 +346,7 @@ cdef class Star(StarParticle):
         else:
             raise NotImplementedError
 
-
+        return
 
 #    @property
     cpdef double mechanical_luminosity(self):
@@ -355,8 +372,9 @@ cdef class Star(StarParticle):
         """
         zeroes certain properties after star dies
         """
-        zero_properties = ['E0', 'E1', 'L_FUV', 'L_LW', 'Q0', 'Q1',
-                           'luminosity', 'v_wind', 'Mdot_wind']
+        cdef list zero_properties = ['E0', 'E1', 'L_FUV', 'L_LW', 'Q0', 'Q1',
+                                    'luminosity', 'v_wind', 'Mdot_wind']
+        cdef str p
 
         self.Mdot_ej = 0.0
         for p in zero_properties:
@@ -364,7 +382,7 @@ cdef class Star(StarParticle):
 
         return
 
-    cdef public double ionizing_photons(self, photon_type):
+    cdef public double ionizing_photons(self, str photon_type):
 
         if not 'q' in photon_type:
             if photon_type == 'HI':
@@ -389,10 +407,17 @@ cdef class Star(StarParticle):
         else:
             return 0.0
 
-    cdef public void stellar_wind_parameters(self, age, dt):
+    cdef public void stellar_wind_parameters(self, double age, double dt):
 
         if not self.properties['type'] == 'star' or not config.stars.use_stellar_winds:
             return
+
+        #cdef bint do_wind
+        cdef double wind_lifetime = 0.0
+        cdef double Mdot = 0.0
+        cdef double final_mass = 0.0
+        cdef double correct_final_mass = 0.0
+        cdef double vwind = 0.0
 
         #if (self.M_o <= config.data.yields_mass_limits[1]) and\
         #   (self.M_o >= config.data.yields_mass_limits[0]):
@@ -450,7 +475,7 @@ cdef class Star(StarParticle):
         self.properties['v_wind']    = vwind
         return
 
-    def compute_stellar_wind_yields(self):
+    cdef np.ndarray compute_stellar_wind_yields(self):
         """ compute_stellar_wind_yields
 
         Computes yields from stellar winds for all considered species using
@@ -463,6 +488,7 @@ cdef class Star(StarParticle):
             atomic number order
         """
 
+        cdef np.ndarray yields
 
         if( self.M_o < config.data.yields_mass_limits[1] ):
 
@@ -488,9 +514,14 @@ cdef class Star(StarParticle):
     cdef public void _assign_properties(self):
 
         # list of properties assigned in this function (remember to update!!)
-        p_list = ['luminosity', 'radius',
-                  'lifetime'  , 'age_agb', 'L_FUV', 'L_LW', 'agb_phase_length',
-                  'Q0', 'E0', 'Q1', 'E1', 'Mdot_wind', 'v_wind', 'M_wind_total']
+        cdef list p_list = ['luminosity', 'radius',
+                            'lifetime'  , 'age_agb', 'L_FUV', 'L_LW', 'agb_phase_length',
+                            'Q0', 'E0', 'Q1', 'E1', 'Mdot_wind', 'v_wind', 'M_wind_total']
+        cdef int i = 0
+        cdef str e = ''
+        cdef str p = ''
+        #cdef double L, T, R, lifetime, age_agb, Q0, Q1, FUV, LW, E0, E1, a
+        #cdef double interp_error_flag = -123456.0 # unique flag - allows for better dtype
 
         if self.properties['type'] == 'unresolved_star':
             self.Mdot_ej           = 0.0
@@ -498,7 +529,9 @@ cdef class Star(StarParticle):
                 self.properties[p] = 0.0
             return
 
-        L, T, R, lifetime, age_agb = SE_TABLE.interpolate([self.M_o,self.Z], ['L','Teff','R','lifetime','age_agb'])
+        L, T, R, lifetime, age_agb = SE_TABLE.interpolate([self.M_o,self.Z],
+                                                          ['L','Teff','R','lifetime','age_agb'])
+                                                          #flag = interp_error_flag )
         self.properties['luminosity']  = L * const.Lsun
         self.properties['Teff']        = T
         self.properties['R']           = R
@@ -510,17 +543,19 @@ cdef class Star(StarParticle):
         Q0, Q1, FUV, LW = RAD_TABLE.interpolate([self.properties['Teff'],
                                              self.surface_gravity(),
                                              self.Z], ['q0','q1','FUV_flux', 'LW_flux'])
+                                             #flag = interp_error_flag)
 
         E0  = rad.average_energy(const.E_HI/ const.eV_erg, self.properties['Teff'])
         E1  = rad.average_energy(const.E_HeI/const.eV_erg, self.properties['Teff'])
 
 
-        use_blackbody = False
+        cdef bint use_blackbody = False
         for a in [Q0, Q1, FUV, LW]:
-            if a == 'offgrid':
+            if a == "offgrid":
                 use_blackbody = True
                 break;
 
+        cdef int corr_ind
         if use_blackbody:
             FUV = rad.fuv_flux_blackbody(self.properties['Teff'])
             LW  = rad.LW_flux_blackbody(self.properties['Teff'])
@@ -552,7 +587,7 @@ cdef class Star(StarParticle):
         # Interpolate and store wind and supernova abundances
         #
 
-        yields = self.compute_stellar_wind_yields()
+        cdef np.ndarray yields = self.compute_stellar_wind_yields()
 
         i = 0
         for e in self.wind_ejecta_abundances.keys():
@@ -573,7 +608,8 @@ cdef class Star(StarParticle):
 
     cdef dict wind_ejecta_masses(self):
 
-        mass = {} # OrderedDict()
+        cdef dict mass = {} # OrderedDict()
+        cdef str k = ''
 
         for k in self.wind_ejecta_abundances.keys():
             mass[k] = self.wind_ejecta_abundances[k] * self.properties['M_wind_total']
@@ -598,6 +634,10 @@ cdef class Star(StarParticle):
         In actuality this just adds the star to a buffer to limit IO
         """
 
+        cdef int i = 0
+        cdef int ei = 0
+        cdef str e = ''
+
         if not (config.io._abundance_buffer is None):
 
             config.io._abundance_buffer.flush() # flush if needed
@@ -613,19 +653,23 @@ cdef class Star(StarParticle):
                 config.io._abundance_buffer.buffer[i][ei+5] = abundances[e]
 
             config.io._abundance_buffer.count += 1
-
         return
 
-class StarList:
+cdef class StarList:
     """
     List of star objects with useful functions to handle operating
     on many stars at once.
     """
 
-    def __init__(self, stars = None):
+    cdef public list _stars
+    cdef public bint _stars_optimized
+    cdef public bint _are_there_new_stars
+    cdef public  int _N_stars
+
+    def __init__(self, list stars = []):
 
 
-        if stars is None:
+        if len(stars) == 0:
             if config.zone.maximum_stars != None and config.zone.optimize:
                 self._stars           = [None] * config.zone.maximum_stars
                 self._stars_optimized = True
@@ -643,31 +687,34 @@ class StarList:
 
         return
 
-    def evolve(self, t, dt, *args, **kwargs):
+    def evolve(self, double t, double dt, *args, **kwargs):
 
         #map( lambda x : x.evolve(t, dt, *args, **kwargs), self.stars_iterable)
 #        Was debating trying to multi-thread here but that might not do anything
 #        if config.multiprocess:
 #
 #        else:
-        for x in self.stars_iterable:
+
+        for x in self.stars_iterable():
             x.evolve(t,dt,*args,**kwargs)
 
         return
 
-    @property
-    def stars(self):
+#    @property
+    cpdef list stars(self):
         if self._stars_optimized:
-            return self._stars[:self.N_stars]
+            return self._stars[:self.N_stars()]
         else:
             return self._stars
 
-    @property
-    def stars_iterable(self):
-        return itertools.islice(self._stars, None, self.N_stars)
+#    @property
+    cdef list stars_iterable(self):
+        # in hindsight this isnt' needed at all
+        return self._stars
+        #return itertools.islice(self._stars, None, self.N_stars())
 
-    @property
-    def N_stars(self):
+#    @property
+    cpdef int N_stars(self):
 
         #if self._are_there_new_stars:
 
@@ -679,11 +726,11 @@ class StarList:
         return self._N_stars
 
 
-    def _values_outdated(self):
+    cdef bint _values_outdated(self):
 
         return self._internal_time < config.global_values.time
 
-    def add_new_star(self, new_star):
+    cpdef void add_new_star(self, Star new_star):
         """
         Adds a new star to the list. Either appends the star to the list
         or fills it in the list of memory optimization is on and a maximum
@@ -696,7 +743,7 @@ class StarList:
             #
             # add to last element in list
             #
-            self._stars[ self.N_stars ] = new_star
+            self._stars[ self.N_stars() ] = new_star
         else:
 
             self._append(new_star)
@@ -704,29 +751,44 @@ class StarList:
         self._N_stars += 1
 
         config.global_values.profiler.end_timer('add_new_star')
+
         return
 
 
 
-    def _append(self, new_star):
+    cdef void _append(self, Star new_star):
         # apparently a possible bug in appending objects to list with gc
         gc.disable()
         self._stars.append(new_star)
         gc.enable()
         return
 
-    def property_asarray(self, name, star_type = 'all', subset_condition = None):
+    cpdef np.ndarray property_asarray(self, str name, str star_type='all',subset_condition=None):
+        # defining this wrapper (and the ones like it) so that it call be called
+        # easily from python routines since apparently cython does not like
+        # defining functions (e.g. lambda) within cpdef functions.
+
+        return self._property_asarray(name,star_type,subset_condition)
+
+    cdef np.ndarray _property_asarray(self, str name, str star_type, subset_condition):
+
 
         config.global_values.profiler.start_timer('property_asarray', True)
 
-        if self.N_stars == 0:
+        cdef list _star_subset
+        cdef np.ndarray array
+        cdef Star x # may break
+
+        if self.N_stars() == 0:
             config.global_values.profiler.end_timer('property_asarray')
+
             return np.zeros(1)
+
 
         if not star_type == 'all':
             _star_subset = self.get_subset( lambda x : x.properties['type'] == star_type )
         else:
-            _star_subset = self.stars_iterable
+            _star_subset = self.stars_iterable()
 
         if not subset_condition == None:
             for key in subset_condition.keys():
@@ -760,7 +822,7 @@ class StarList:
 
         if len(array) == 0:
             if name == 'type':
-                return [None]
+                return np.array([None])
             else:
                 return np.zeros(1)
         else:
@@ -768,27 +830,32 @@ class StarList:
 
 
 
+    cpdef np.ndarray property_names(self, str mode='unique', str star_type='all'):
 
-    def property_names(self, mode='unique', star_type = 'all'):
-        if self.N_stars == 0:
+      return self._property_names(mode,star_type)
+
+    cdef np.ndarray _property_names(self, str mode, str star_type):
+
+        if self.N_stars() == 0:
             return None
+
+        cdef list _star_subset
 
         if not star_type == 'all':
             _star_subset = self.get_subset( lambda x : x.properties['type'] == star_type )
         else:
-            _star_subset = self.stars_iterable
+            _star_subset = self.stars_iterable()
 
+        cdef list all_keys = [x.properties.keys() for x in _star_subset]
+        cdef np.ndarray unique_keys = np.unique([item for sublist in all_keys for item in sublist])
 
-        all_keys = [x.properties.keys() for x in _star_subset]
-        unique_keys = np.unique([item for sublist in all_keys for item in sublist])
-
+        cdef int i = 0
         if mode == 'unique':   # get all unique keys from all stars in set
             return unique_keys
         elif mode == 'shared': # get only properties shared among all stars in set
-            i = 0
             return np.unique([element for element in unique_keys if element in all_keys[i] for i in np.arange(0,len(all_keys))])
 
-    def get_subset(self, expr):
+    cpdef list get_subset(self, expr):
         """
         Get subset of stars that have a TRUE value for the desired expression.
         Previously did list method, but now attempting to handle this with an iterable
@@ -805,24 +872,30 @@ class StarList:
         """
 
         config.global_values.profiler.start_timer('get_subset',True)
-        res = [ x for x in self.stars_iterable if expr(x) ]
+        cdef list res = [ x for x in self.stars_iterable() if expr(x) ]
         config.global_values.profiler.end_timer('get_subset')
         return res
 
 #        return itertools.ifilterfalse( expr,  self.stars)
 
-    def _get_subset(self, iterable, expr):
+    cdef list _get_subset(self, iterable, expr):
         return [x for x in iterable if expr(x)]
 
-    def species_asarray(self, name, star_type = 'all'):
+    cpdef np.ndarray species_array(self, str name, str star_type = 'all'):
+        return self._species_array(name,star_type)
+
+    cdef np.ndarray _species_asarray(self, str name, str star_type):
         """
         Return either the ejecta rates or chemical tags for stars as array
         """
 
+        cdef list _star_subset
+        cdef np.ndarray return_list
+
         if not star_type == 'all':
             _star_subset = self.get_subset( lambda x : x.properties['type'] == star_type )
         else:
-            _star_subset = self.stars_iterable
+            _star_subset = self.stars_iterable()
 
         if 'Mdot' in name:
             if 'ej' in name:
@@ -850,25 +923,28 @@ class StarList:
         else:
             return return_list
 
-    def Z(self):
+    cpdef np.ndarray Z(self):
         """
         List comprehension to return all metallicities as numpy array
         """
-        return np.asarray([x.Z for x in self.stars_iterable])
+        #cdef Star x
+        return np.asarray([x.Z for x in self.stars_iterable()])
 
-    def M(self):
+    cpdef np.ndarray M(self):
         """
         List comprehension to return all masses as np array
         """
-        return np.asarray([x.M for x in self.stars_iterable])
+        #cdef Star x
+        return np.asarray([x.M for x in self.stars_iterable()])
 
-    def M_o(self):
+    cpdef np.ndarray M_o(self):
         """
         Return all initial masses of stars as np array
         """
+        #cdef Star x
+        return np.asarray([x.M_o for x in self.stars_iterable()])
 
-        return np.asarray([x.M_o for x in self.stars_iterable])
 
-
-def _my_print(string):
+cdef void _my_print(str string):
     print('[Star]: ' + string)
+    return

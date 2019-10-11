@@ -11,7 +11,7 @@ __author__ = "aemerick <emerick@astro.columbia.edu>"
 
 # external
 import numpy as np
-from collections import OrderedDict
+#from collections import OrderedDict
 import os, h5py
 from scipy.interpolate import interp1d
 
@@ -91,7 +91,7 @@ class Zone:
         self._mass_loading_initialized = False # only for mass_outflow_method 2
 
         self.initial_abundances = config.zone.initial_abundances
-        self.species_masses     = OrderedDict()
+        self.species_masses     = {} # OrderedDict()
 
         #
         # some private things
@@ -113,9 +113,9 @@ class Zone:
         self.Mdot_ej = 0.0
         self.Mdot_DM = 0.0
         self.Mdot_out = 0.0
-        self.Mdot_out_species = OrderedDict()
-        self.Mdot_ej_masses = OrderedDict()
-        self.SN_ej_masses   = OrderedDict()
+        self.Mdot_out_species = {} # OrderedDict()
+        self.Mdot_ej_masses   = {} # OrderedDict()
+        self.SN_ej_masses     = {} # OrderedDict()
 
         self.N_SNIa = 0
         self.N_SNII = 0
@@ -144,7 +144,7 @@ class Zone:
         set to zero except H and He. Abundances dict does not have to be
         complete
         """
-        self.initial_abundances = OrderedDict()
+        self.initial_abundances = {} # OrderedDict()
 
         if abundances == None:
             abundances = {'empty' : 0.0}
@@ -171,7 +171,7 @@ class Zone:
         # One day, set this as list with second list of conditionals
         # so one can (at runtime) arbitrarily track on any condition
         #
-        self.special_mass_accumulator = OrderedDict()
+        self.special_mass_accumulator = {} # OrderedDict()
         self.special_mass_accumulator['m_massive'] = 0.0
 
         return None
@@ -199,6 +199,7 @@ class Zone:
            outputs.
         """
 
+        config.global_values.profiler.start_timer("total_time",True)
         while self.t <= config.zone.t_final:
 
             config.global_values.profiler.start_timer('compute_dt')
@@ -302,6 +303,9 @@ class Zone:
         # At end of simulation, force summary and dump
         # outputs
         #
+        config.global_values.profiler.end_timer("total_time")
+        config.global_values.profiler.write_performance(outstr=outstr)
+
         self._check_output(force=True)
         self._clean_up()
 
@@ -370,11 +374,11 @@ class Zone:
 
     @property
     def N_stars(self):
-        return self.all_stars.N_stars
+        return self.all_stars.N_stars()
 
     @property
     def M_stars(self):
-        return np.sum(self.all_stars.M)
+        return np.sum(self.all_stars.M())
 
     def _compute_dt(self):
 
@@ -891,7 +895,7 @@ class Zone:
         #
         # Save star parameters as lists of values
         #
-        star_dict = OrderedDict()
+        star_dict = {} # OrderedDict()
         _gather_properties = { 'mass' : 'mass', 'birth_mass' : 'birth_mass',
                                'metallicity' : 'metallicity', 'age' : 'age'}
 
@@ -968,7 +972,7 @@ class Zone:
         to do this.
         """
 
-        self._summary_data = OrderedDict()
+        self._summary_data = {} # OrderedDict()
 
         self._summary_data['t']       = self.t
 
@@ -1076,6 +1080,8 @@ class Zone:
         fmt = "%5.5E "*ncol + "\n"
 #        output_val  = list(self._summary_data.values())
 #        f.write(fmt% ())
+        #print(self._summary_data)
+        #print(self._summary_data.values())
         f.writelines("%5.5E "% x for x in self._summary_data.values() )
         f.write("\n")
 
