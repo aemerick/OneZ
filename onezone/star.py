@@ -1,6 +1,21 @@
 
 __author__ = "aemerick <emerick@astro.columbia.edu>"
 
+"""
+    Implementation of the Star class(es) which represent individual
+    star particles with various properties, along with the StarList class
+    which can be used to conveniently interact with many (via a list) stars
+    at once.
+
+    NOTE: This is the pure-python implementation of these classes. There is an
+    identical cython implementation in cython_ext/cython_star.pyx that runs
+    MUCH faster. The cython implementation is not currently too fancy, so it can
+    likely be interacted with the exact same way as the pure-python implementation
+    without any code modifications (i.e. differences should be invisible to the
+    user if dealing with star objects independently of the onezone module)
+
+"""
+
 # need to allow dimension switch in interpolation routines
 # when one of the dims is exactly equal to one of the grid points
 _interpolation_hack = 0.999999999 # do this for now
@@ -288,7 +303,7 @@ class Star(StarParticle):
                 #print "------------------------", self.sn_ejecta_masses
 
         else:
-            return NotImplementedError
+            raise NotImplementedError
 
         return yields
 
@@ -614,10 +629,10 @@ class StarList:
     on many stars at once.
     """
 
-    def __init__(self, stars = None):
+    def __init__(self, stars = []):
 
 
-        if stars is None:
+        if len(stars) == 0:
             if config.zone.maximum_stars != None and config.zone.optimize:
                 self._stars           = [None] * config.zone.maximum_stars
                 self._stars_optimized = True
@@ -650,15 +665,14 @@ class StarList:
     @property
     def stars(self):
         if self._stars_optimized:
-            return self._stars[:self.N_stars]
+            return self._stars[:self.N_stars()]
         else:
             return self._stars
 
     @property
     def stars_iterable(self):
-        return itertools.islice(self._stars, None, self.N_stars)
+        return itertools.islice(self._stars, None, self.N_stars())
 
-    @property
     def N_stars(self):
 
         #if self._are_there_new_stars:
@@ -688,7 +702,7 @@ class StarList:
             #
             # add to last element in list
             #
-            self._stars[ self.N_stars ] = new_star
+            self._stars[ self.N_stars() ] = new_star
         else:
 
             self._append(new_star)
@@ -711,12 +725,12 @@ class StarList:
 
         config.global_values.profiler.start_timer('property_asarray', True)
 
-        if self.N_stars == 0:
+        if self.N_stars() == 0:
             config.global_values.profiler.end_timer('property_asarray')
             return np.zeros(1)
 
         if not star_type == 'all':
-            _star_subset = self.get_subset( lambda x : x.properties['type'] != star_type )
+            _star_subset = self.get_subset( lambda x : x.properties['type'] == star_type )
         else:
             _star_subset = self.stars_iterable
 
@@ -762,11 +776,11 @@ class StarList:
 
 
     def property_names(self, mode='unique', star_type = 'all'):
-        if self.N_stars == 0:
+        if self.N_stars() == 0:
             return None
 
         if not star_type == 'all':
-            _star_subset = self.get_subset( lambda x : x.properties['type'] != star_type )
+            _star_subset = self.get_subset( lambda x : x.properties['type'] == star_type )
         else:
             _star_subset = self.stars_iterable
 
@@ -797,7 +811,7 @@ class StarList:
         """
 
         config.global_values.profiler.start_timer('get_subset',True)
-        res = [ x for x in self.stars_iterable if not expr(x) ]
+        res = [ x for x in self.stars_iterable if expr(x) ]
         config.global_values.profiler.end_timer('get_subset')
         return res
 
@@ -812,7 +826,7 @@ class StarList:
         """
 
         if not star_type == 'all':
-            _star_subset = self.get_subset( lambda x : x.properties['type'] != star_type )
+            _star_subset = self.get_subset( lambda x : x.properties['type'] == star_type )
         else:
             _star_subset = self.stars_iterable
 
