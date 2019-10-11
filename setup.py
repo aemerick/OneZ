@@ -1,7 +1,7 @@
 from setuptools import setup
 #from setuptools.extension import Extension
 
-import numpy as np
+import numpy
 
 import os
 import sys
@@ -36,10 +36,16 @@ cython_extensions = [
     Extension(
           "onezone.cython_ext.sample_imf",
           ["onezone/cython_ext/sample_imf.pyx"],
+          include_dirs = [numpy.get_include()]
+          #extra_compile_args=["-g"],
+#    extra_link_args=["-g"],
         ),
     Extension(
            "onezone.cython_ext.cython_star",
           ["onezone/cython_ext/cython_star.pyx"],
+          include_dirs = [numpy.get_include()],
+#          extra_compile_args=["-g"],
+#          extra_link_args=["-g"],
         )
 ]
 
