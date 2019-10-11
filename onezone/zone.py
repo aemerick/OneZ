@@ -379,7 +379,7 @@ class Zone:
     def _compute_dt(self):
 
         if config.zone.adaptive_timestep:
-            lifetimes = self.all_stars.property_asarray('lifetime','star')
+            lifetimes = np.asarray(self.all_stars.property_asarray('lifetime','star'))
 
             if np.size(lifetimes) > 1:
                 max_dt       = config.zone.max_dt  * const.Myr / config.units.time
@@ -896,9 +896,9 @@ class Zone:
                                'metallicity' : 'metallicity', 'age' : 'age'}
 
         for k in _gather_properties:
-            star_dict[k] = self.all_stars.property_asarray( _gather_properties[k])
+            star_dict[k] = np.asarray(self.all_stars.property_asarray( _gather_properties[k]))
 
-        star_dict['type']         = self.all_stars.property_asarray('type').astype('S')
+        star_dict['type']         = np.asarray(self.all_stars.property_asarray('type')).astype('S')
 
         Nstars = np.size(star_dict['mass'])
 
@@ -987,10 +987,10 @@ class Zone:
 
         sum_names = ['Mdot_ej', 'L_FUV', 'L_LW', 'Q0', 'Q1']
         for n in sum_names:
-            self._summary_data[n] = np.sum(self.all_stars.property_asarray(n))
+            self._summary_data[n] = np.sum(np.asarray(self.all_stars.property_asarray(n)))
 
-        self._summary_data['L_bol']  = np.sum(self.all_stars.property_asarray('luminosity'))
-        self._summary_data['L_wind'] = np.sum(self.all_stars.property_asarray('mechanical_luminosity'))
+        self._summary_data['L_bol']  = np.sum(np.asarray(self.all_stars.property_asarray('luminosity')))
+        self._summary_data['L_wind'] = np.sum(np.asarray(self.all_stars.property_asarray('mechanical_luminosity')))
 
         self._summary_data['L_Q0'] = np.sum(self.all_stars.property_asarray('Q0') * self.all_stars.property_asarray('E0'))
         self._summary_data['L_Q1'] = np.sum(self.all_stars.property_asarray('Q1') * self.all_stars.property_asarray('E1'))

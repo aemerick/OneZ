@@ -34,9 +34,10 @@ POPIII_YIELD_TABLE       = DT.StellarYieldsTable("popIII")
 
 cdef class StarParticle:
 
-    cdef double M, Z, age, t_now, M_o, tform
-    cdef int id
-    cdef dict properties, sn_ejecta_masses, wind_ejecta_abundances
+    # note to self. public makes these available attributes to python
+    cdef public double M, Z, age, t_now, M_o, tform
+    cdef public int id
+    cdef public dict properties, sn_ejecta_masses, wind_ejecta_abundances
 
     def __init__(self, M = None, Z = None, abundances={'m_tot':1.0}, tform=0.0, id = 0, M_o = None,
                       age = None, t_now = None):
@@ -113,11 +114,11 @@ cdef class StarParticle:
 
 cdef class Star(StarParticle):
 
-    cdef double Mdot_ej
+    cdef public double Mdot_ej
 
     def __init__(self, star_type = 'star', *args, **kwargs):
 
-        StarParticle.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.properties['type'] = star_type
 
@@ -331,26 +332,26 @@ cdef class Star(StarParticle):
 
 
 #    @property
-    cdef double mechanical_luminosity(self):
+    cpdef double mechanical_luminosity(self):
         return 0.5 * self.properties['Mdot_wind'] * const.Msun * self.properties['v_wind']**2
 
 #    @property
-    cdef double total_wind_thermal_energy(self):
+    cdef public double total_wind_thermal_energy(self):
         return 1.5 * const.k_boltz * (self.wind_ejecta_masses()['m_tot']*const.Msun)*\
                  self.properties['Teff'] / (0.65*const.m_p)
 
 #    @property
-    cdef double total_wind_kinetic_energy(self):
+    cdef public double total_wind_kinetic_energy(self):
         return 0.5 * self.wind_ejecta_masses()['m_tot']*const.Msun * self.properties['v_wind']**2
 
 
-    cdef double surface_gravity(self):
+    cdef public double surface_gravity(self):
         return const.G * self.M * const.Msun / self.properties['R']**2
 
-    cdef double surface_area(self):
+    cdef public double surface_area(self):
         return 4.0 * np.pi * self.properties['R']**2
 
-    cdef void _clear_properties(self):
+    cdef public void _clear_properties(self):
         """
         zeroes certain properties after star dies
         """
@@ -363,7 +364,7 @@ cdef class Star(StarParticle):
 
         return
 
-    cdef double ionizing_photons(self, photon_type):
+    cdef public double ionizing_photons(self, photon_type):
 
         if not 'q' in photon_type:
             if photon_type == 'HI':
@@ -376,19 +377,19 @@ cdef class Star(StarParticle):
         else:
             return 0.0
 
-    cdef double fuv_luminosity(self):
+    cdef public double fuv_luminosity(self):
         if self.properties.haskey('FUV_flux'):
             return self.properties['FUV_flux'] * self.surface_area()
         else:
             return 0.0
 
-    cdef double LW_luminosity(self):
+    cdef public double LW_luminosity(self):
         if self.properties.haskey('LW_flux'):
             return self.properties['LW_flux'] * self.surface_area()
         else:
             return 0.0
 
-    cdef void stellar_wind_parameters(self, age, dt):
+    cdef public void stellar_wind_parameters(self, age, dt):
 
         if not self.properties['type'] == 'star' or not config.stars.use_stellar_winds:
             return
@@ -484,7 +485,7 @@ cdef class Star(StarParticle):
         return np.asarray(yields)
 
 
-    cdef void _assign_properties(self):
+    cdef public void _assign_properties(self):
 
         # list of properties assigned in this function (remember to update!!)
         p_list = ['luminosity', 'radius',
@@ -585,7 +586,7 @@ cdef class Star(StarParticle):
 
         return self.sn_ejecta_masses
 
-    cdef void write_abundance(self, abundances):
+    cdef public void write_abundance(self, abundances):
         """
         Write star particle abundances to file. In principle, if homogenous one-zone
         model is used this is not necessary as abundances will just be identical to gas
@@ -723,7 +724,7 @@ class StarList:
             return np.zeros(1)
 
         if not star_type == 'all':
-            _star_subset = self.get_subset( lambda x : x.properties['type'] != star_type )
+            _star_subset = self.get_subset( lambda x : x.properties['type'] == star_type )
         else:
             _star_subset = self.stars_iterable
 
@@ -740,7 +741,7 @@ class StarList:
         elif name == 'Mdot_ej':
             array = np.asarray( [x.Mdot_ej for x in _star_subset] )
         elif name == 'mechanical_luminosity':
-            array = np.asarray( [x.mechanical_luminosity for x in _star_subset])
+            array = np.asarray( [x.mechanical_luminosity() for x in _star_subset])
         elif name == 'id':
             array = np.asarray( [x.id for x in _star_subset])
         elif name == 'age':
@@ -773,7 +774,7 @@ class StarList:
             return None
 
         if not star_type == 'all':
-            _star_subset = self.get_subset( lambda x : x.properties['type'] != star_type )
+            _star_subset = self.get_subset( lambda x : x.properties['type'] == star_type )
         else:
             _star_subset = self.stars_iterable
 
@@ -789,22 +790,22 @@ class StarList:
 
     def get_subset(self, expr):
         """
-        Get subset of stars that have a FALSE value for the desired expression.
+        Get subset of stars that have a TRUE value for the desired expression.
         Previously did list method, but now attempting to handle this with an iterable
         to (hopefully) substantially improve things. For example, to get stars
         that are of type star:
 
-            >> obj.get_subset( lambda x : x.properties['type'] != 'star' )
+            >> obj.get_subset( lambda x : x.properties['type'] == 'star' )
 
         Or to get stars between (and including) 10 and 20 solar masses ( M over [10,20]):
 
-            >> obj.get_subset( lambda x : (x.M < 10.0) + (x.M > 20.0) )
+            >> obj.get_subset( lambda x : (x.M > 10.0) + (x.M < 20.0) )
 
         Returns iterable
         """
 
         config.global_values.profiler.start_timer('get_subset',True)
-        res = [ x for x in self.stars_iterable if not expr(x) ]
+        res = [ x for x in self.stars_iterable if expr(x) ]
         config.global_values.profiler.end_timer('get_subset')
         return res
 
@@ -819,7 +820,7 @@ class StarList:
         """
 
         if not star_type == 'all':
-            _star_subset = self.get_subset( lambda x : x.properties['type'] != star_type )
+            _star_subset = self.get_subset( lambda x : x.properties['type'] == star_type )
         else:
             _star_subset = self.stars_iterable
 
