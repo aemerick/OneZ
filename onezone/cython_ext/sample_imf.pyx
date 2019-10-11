@@ -3,6 +3,7 @@
 #
 
 import numpy as np
+cimport numpy as np
 
 MAX_STARS = 100000
 
@@ -30,11 +31,11 @@ cdef int find_bin(double[:] array, double x, int l, int r, int total):
 
     return -1
 
-def sample_imf(double[:] table, double M, 
-               int N,
-               double IMF_dm,
-               double IMF_start, double IMF_end,
-               int table_points):
+cpdef double[:] sample_imf(double[:] table, double M, 
+                           int N,
+                           double IMF_dm,
+                           double IMF_start, double IMF_end,
+                           int table_points):
 
     cdef double[:] stars = np.zeros(int(M/IMF_start))
     cdef int i = -1
