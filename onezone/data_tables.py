@@ -385,7 +385,7 @@ class RadiationData(DataTable):
         return None
 
 
-    def interpolate(self, vals, ynames, silence = None):
+    def interpolate(self, vals, ynames, silence = None, flag = 'offgrid', special_flag = 'offgrid'):
 
         if silence == None: # default behavior is ignore off grid values
             silence = True  # this usualy means radiation should be computed some other way
@@ -402,13 +402,13 @@ class RadiationData(DataTable):
             if yname == 'q0' or yname == 'q1':
 
                 return_list[count] =  DataTable.interpolate(self, vals, yname, silence = silence,
-                                            flag = 'offgrid', special_flag = 'offgrid',
+                                            flag = flag, special_flag = special_flag,
                                             special_errval = 0.0)
 
             elif yname == 'FUV_flux' or yname == 'LW_flux':
 
                 return_list[count] =  DataTable.interpolate(self, vals, yname, silence = silence,
-                                            flag = 'offgrid', special_flag = 'offgrid',
+                                            flag = flag, special_flag = special_flag,
                                             special_errval = -1.0)
             count = count + 1
 
@@ -516,7 +516,7 @@ class StellarYieldsTable(DataTable):
         return None
 
 
-    def interpolate(self, vals, ynames, silence = True):
+    def interpolate(self, vals, ynames, silence = True, flag = 'offgrid'):
         """ interpolate
 
         Wrapper around base class interpolation routine to handle
@@ -533,7 +533,7 @@ class StellarYieldsTable(DataTable):
         ynames_exist = [x for x in ynames if x in self._available_yields]
 
         # find yields for elements present in the data table
-        output = DataTable.interpolate(self, vals, ynames_exist, silence)
+        output = DataTable.interpolate(self, vals, ynames_exist, silence, flag = flag)
 
         # check output, make sure not out of bounds or offgrid
         out_of_bounds = False
