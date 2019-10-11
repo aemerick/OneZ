@@ -20,6 +20,10 @@ if "cleanall" in args:
     print("Deleting cython files...")
     # Just in case the build directory was created by accident,
     # note that shell=True should be OK here because the command is constant.
+    subprocess.Popen("rm -rf onezone_cython.egg-info",shell=True,executable="/bin/bash")
+    subprocess.Popen("rm -rf onezone.egg-info",shell=True,executable="/bin/bash")
+    subprocess.Popen("rm -rf dist",shell=True,executable="/bin/bash")
+
     for p in ['./','./onezone/cython_ext/']:
         subprocess.Popen("rm -rf " + p + "build", shell=True, executable="/bin/bash")
         subprocess.Popen("rm -rf " + p + "*.c", shell=True, executable="/bin/bash")
