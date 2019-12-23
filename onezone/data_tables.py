@@ -33,6 +33,7 @@ class DataTable:
         self.ndim        = 0
         self.dim_names   = []
         self._array_size = 0
+        self.data_dir    = None
 
     def read_data(self):
         pass
@@ -219,7 +220,7 @@ class DataTable:
             raise ValueError
 
         i = np.abs( x - xarray).argmin()
-        if ( x < xarray[i]):
+        if ( x <= xarray[i]):
           i = i - 1
 
         t = (x - xarray[i]) / (xarray[i+1] - xarray[i])
@@ -243,7 +244,7 @@ class DataTable:
 
 class StellarEvolutionData(DataTable):
 
-    def __init__(self, manual_table = False):
+    def __init__(self, manual_table = False, data_dir = None):
         DataTable.__init__(self, "Stellar Evolution Data Table")
 
         self.ndim = 2
@@ -252,11 +253,15 @@ class StellarEvolutionData(DataTable):
         if not manual_table:
             self.read_data()
 
+        self.data_dir = data_dir
+
     def read_data(self, data_dir = None):
 
         if data_dir == None:
-            self.data_dir = install_dir + 'Data/'
-
+            if self.data_dir is None:
+                self.data_dir = install_dir + 'Data/'
+            else:
+                self.data_dir = data_dir
         #
         self.x['mass'] = np.array( [  1.0,  2.0,  3.0,  4.0,   5.0,
                                       6.0,  7.0,  8.0, 10.0,  12.0,
@@ -423,7 +428,7 @@ class RadiationData(DataTable):
 
 class StellarYieldsTable(DataTable):
 
-    def __init__(self, yield_type, name = None, manual_table = False):
+    def __init__(self, yield_type, name = None, manual_table = False, data_dir = None):
         """ StellarYieldsDataTable subclass of DataTable
 
         Given an table type, reads in and constructs data table for
@@ -461,6 +466,8 @@ class StellarYieldsTable(DataTable):
 
         self.yield_type = yield_type
 
+        self.data_dir = data_dir
+
         if not manual_table:
             self.read_data()
 
@@ -475,8 +482,11 @@ class StellarYieldsTable(DataTable):
         if yield_type is None:
             yield_type = self.yield_type
 
-        if data_dir == None:
-            self.data_dir = install_dir + 'Data/'
+        if self.data_dir is None:
+            if data_dir == None:
+                self.data_dir = install_dir + 'Data/'
+            else:
+                self.data_dir = data_dir
 
         max_col = 87
         if yield_type == 'SNII':

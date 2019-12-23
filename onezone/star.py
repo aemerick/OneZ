@@ -696,7 +696,8 @@ class StarList:
         number of stars is provided
         """
 
-        config.global_values.profiler.start_timer('add_new_star', True)
+        if (not( config.global_values.profiler is None)):
+            config.global_values.profiler.start_timer('add_new_star', True)
 
         if self._stars_optimized:
             #
@@ -708,8 +709,9 @@ class StarList:
             self._append(new_star)
 
         self._N_stars += 1
+        if (not( config.global_values.profiler is None)):
 
-        config.global_values.profiler.end_timer('add_new_star')
+            config.global_values.profiler.end_timer('add_new_star')
         return
 
 
@@ -723,10 +725,14 @@ class StarList:
 
     def property_asarray(self, name, star_type = 'all', subset_condition = None):
 
-        config.global_values.profiler.start_timer('property_asarray', True)
+        if (not( config.global_values.profiler is None)):
+
+            config.global_values.profiler.start_timer('property_asarray', True)
 
         if self.N_stars() == 0:
-            config.global_values.profiler.end_timer('property_asarray')
+            if (not( config.global_values.profiler is None)):
+
+                config.global_values.profiler.end_timer('property_asarray')
             return np.zeros(1)
 
         if not star_type == 'all':
@@ -762,7 +768,9 @@ class StarList:
         #
         # as can happen if there are no stars in subset
         #
-        config.global_values.profiler.end_timer('property_asarray')
+        if (not( config.global_values.profiler is None)):
+
+            config.global_values.profiler.end_timer('property_asarray')
 
         if len(array) == 0:
             if name == 'type':
@@ -810,9 +818,11 @@ class StarList:
         Returns iterable
         """
 
-        config.global_values.profiler.start_timer('get_subset',True)
+        if (not( config.global_values.profiler is None)):
+            config.global_values.profiler.start_timer('get_subset',True)
         res = [ x for x in self.stars_iterable if expr(x) ]
-        config.global_values.profiler.end_timer('get_subset')
+        if (not( config.global_values.profiler is None)):
+            config.global_values.profiler.end_timer('get_subset')
         return res
 
 #        return itertools.ifilterfalse( expr,  self.stars)

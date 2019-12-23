@@ -92,6 +92,7 @@ class Zone:
 
         self.initial_abundances = config.zone.initial_abundances
         self.species_masses     = {} # OrderedDict()
+        self.halo_masses        = {} # add other phase models?
 
         #
         # some private things
@@ -117,6 +118,7 @@ class Zone:
         self.Mdot_ej_masses   = {} # OrderedDict()
         self.SN_ej_masses     = {} # OrderedDict()
 
+
         self.N_SNIa = 0
         self.N_SNII = 0
 
@@ -124,8 +126,9 @@ class Zone:
         # Create stars if starting with initial cluster
         #
         for e in config.zone.species_to_track:
-            self.species_masses[e] = 0.0
+            self.species_masses[e]   = 0.0
             self.Mdot_out_species[e] = 0.0
+            self.halo_masses[e]      = 0.0
 
         if (config.zone.initial_stellar_mass > 0.0):
             self._make_new_stars( M_sf = config.zone.initial_stellar_mass )
@@ -165,6 +168,7 @@ class Zone:
 
         for e in self.initial_abundances.keys():
             self.species_masses[e] = self.M_gas * self.initial_abundances[e]
+            self.halo_masses[e]    = 0.0
 
 
         #
@@ -276,6 +280,9 @@ class Zone:
                                            self.Mdot_ej_masses[e] -\
                                            self.Mdot_out_species[e]) * self.dt -\
                                            self.M_sf * abundances[e] + self.SN_ej_masses[e]
+
+                self.halo_masses[e] = self.halo_masses[e] + self.Mdot_out_species[e] * self.dt # no halo accretion for now.
+
             self.M_gas = new_gas_mass
             self.M_DM  = self.M_DM + self.Mdot_DM * self.dt
 
@@ -354,6 +361,13 @@ class Zone:
             abund[x] = self.species_masses[x] / self.M_gas
 
 
+        return abund
+
+    @property
+    def halo_abundances(self):
+        abund={}
+        for x in self.species_masses.keys():
+            abund[x] = self.halo_masses[x] / self.halo_masses['m_tot']
         return abund
 
     def Mdot_in_abundances(self, e):
@@ -612,12 +626,23 @@ class Zone:
             else:
                 self.Mdot_out = config.zone.mass_loading_factor * self.Mdot_sf
 
+        elif config.zone.mass_outflow_method == 4:
+
+            self.Mdot_out = self._interpolate_tabulated_outflow('m_tot') * config.zone.outflow_factor * self.Mdot_sf * self.M_gas
+
+            for e in self.Mdot_out_species.keys():
+                self.Mdot_out_species[e] = self.Mdot_ej_masses[e] * config.zone.wind_ejection_fraction +\
+                                           (self.SN_ej_masses[e]   * config.zone.sn_ejection_fraction / self.dt)
+
+            for e in ['H','He']: # throw out ambient
+                self.Mdot_out_species[e] = self.Mdot_out * self.abundances[e]
+
         elif config.zone.mass_outflow_method == 2 or config.zone.mass_outflow_method == 3:
 
             # these are fractional outflow rates:
             self.Mdot_out             = self._interpolate_tabulated_outflow('m_tot')     # get total outflow rate
 
-            for e in self.abundances.keys():
+            for e in self.Mdot_out_species.keys():
                 self.Mdot_out_species[e]  = self._interpolate_tabulated_outflow(e)       # for each species
 
             if config.zone.mass_outflow_method == 2: # outflow depends on sfr
@@ -634,11 +659,11 @@ class Zone:
                 for e in self.abundances.keys():
                     self.Mdot_out_species[e] = (self.Mdot_ej_masses[e] + self.SN_ej_masses[e]) / self.dt # converted to a rate for consistency
 
-                if 'H' in self.Mdot_out_species.keys():
-                    self.Mdot_out_species['H']   = self.Mdot_out * self.abundances['H']
+                #if 'H' in self.Mdot_out_species.keys():
+                self.Mdot_out_species['H']   = self.Mdot_out * self.abundances['H']
 
-                if 'He' in self.Mdot_out_species.keys():
-                    self.Mdot_out_species['He']  = self.Mdot_out * self.abundances['He']
+                #if 'He' in self.Mdot_out_species.keys():
+                self.Mdot_out_species['He']  = self.Mdot_out * self.abundances['He']
 
         return
 
@@ -737,6 +762,9 @@ class Zone:
         self._SFR_interpolation_function = interp1d(self._tabulated_SFR_t,
                                                     self._tabulated_SFR, kind = 'linear')
 
+
+        self._SFR_initialized = True
+
         return
 
     def _initialize_tabulated_mass_outflow(self):
@@ -757,20 +785,33 @@ class Zone:
         species = [x for x in data.dtype.names if x is not 't']
 
         self._tabulated_outflow        = {}
+
         for e in species:
             self._tabulated_outflow[e] = data[e]
 
+        for e in ['H','He']:
+            # if not provided, take H and He outflows as the same as the ambient / total
+            # mass outflow. Fine if majority of H/He ejected is ambient ISM (likely).
+            # this is o.k. to do since outflow rates are scaled fractional
+            if not (e in self._tabulated_outflow.keys()):
+                self._tabulated_outflow[e] = 1.0*self._tabulated_outflow['m_tot']
+
         if np.size(data['t']) == 1: # for constant values (no time evolution)
-            self._outflow_interpolation_generator = lambda e : lambda t : self._tabulated_outflow[e]
+            self._outflow_interpolation_generator = lambda _e : lambda t : self._tabulated_outflow[_e]
 
         else:
-            self._outflow_interpolation_generator = lambda e : interp1d(self._tabulated_outflow_t,
-                                                                        self._tabulated_outflow[e],
+            self._outflow_interpolation_generator = lambda _e : interp1d(self._tabulated_outflow_t,
+                                                                        self._tabulated_outflow[_e],
                                                                         kind = 'linear')
 
         self.Mdot_out_species = {} # set up dictionary to store outflow rates
-        for e in species:
+
+        for e in species + ['H','He']:
             self.Mdot_out_species[e] = 0.0
+
+
+        self._mass_loading_initialized = True
+
 
         return
 
@@ -1001,8 +1042,9 @@ class Zone:
 
         # now do all of the abundances
         for e in self.abundances.keys():
-            self._summary_data[e] = self.abundances[e]
-            self._summary_data[e + '_mass'] = self.species_masses[e]
+            self._summary_data[e]                = self.abundances[e]
+            self._summary_data[e + '_mass']      = self.species_masses[e]
+            self._summary_data[e + '_halo_mass'] = self.halo_masses[e]
 
         for key in self.special_mass_accumulator.keys():
             self._summary_data[key] = self.special_mass_accumulator[key]
