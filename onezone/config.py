@@ -128,8 +128,8 @@ class _zone_parameters(_parameters):
             schemes:
 
             1) constant, uniform SFR throughout evolution
-            2) SFR computed based on gas mass and input SFR rate efficiency (cosmological)
-            3) SFH table provided using SFH_filename parameter where
+            2-3) SFR computed based on gas mass and input SFR rate efficiency (cosmological)
+            4) SFH table provided using SFH_filename parameter where
                either two columns are provided, time and SFR, or
                time and stellar mass. Column headers must be named
                appropriately as ("t" or "SFR" or "mass"). Time is assumed to be in Myr
@@ -224,6 +224,12 @@ class _zone_parameters(_parameters):
         self.mass_loading_factor      = 15.7            # constant if non-cosmological
                                                         # value at z = 0 if cosmological
         self.mass_loading_index       = 3.32            # index to redshift power law
+
+        # for outflow method 4
+        self.wind_ejection_fraction   = 0.6             # fraction of stellar wind yields to eject into halo
+        self.sn_ejection_fraction     = 0.95
+        self.outflow_factor           = 1.0             # enhance total outflow
+
         self.SFR_efficiency           = 6.10E-4         #  1 / Myr
         self.SFR_dyn_efficiency       = 0.0950          # unitless (sf / f_dyn)
 
@@ -479,7 +485,7 @@ class _io_parameters(_parameters):
             raise RuntimeError
 
         if not (self.abundance_output_filename is None):
-            headers = ['tform','id','M','Z','lifetime'] + zone.species_to_track
+            headers = ['tform','id','M','Z','lifetime'] + list(zone.species_to_track)
             self._abundance_buffer = chunked_hdf5_buffer(self.abundance_output_filename,
                                                          headers = headers,
                                                          compression = 'gzip',
