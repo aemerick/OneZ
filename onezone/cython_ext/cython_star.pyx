@@ -29,9 +29,13 @@ from onezone.constants import CONST as const
 SE_TABLE  = DT.StellarEvolutionData()
 RAD_TABLE = DT.RadiationData()
 
-SN_YIELD_TABLE           = DT.StellarYieldsTable('SNII')
-WIND_YIELD_TABLE         = DT.StellarYieldsTable('wind')
-MASSIVE_STAR_YIELD_TABLE = DT.StellarYieldsTable('massive_star')
+
+_data_dir = None
+
+
+SN_YIELD_TABLE           = DT.StellarYieldsTable('SNII',data_dir=_data_dir)
+WIND_YIELD_TABLE         = DT.StellarYieldsTable('wind',data_dir=_data_dir)
+MASSIVE_STAR_YIELD_TABLE = DT.StellarYieldsTable('massive_star',data_dir=_data_dir)
 POPIII_YIELD_TABLE       = DT.StellarYieldsTable("popIII")
 
 cdef class StarParticle:
