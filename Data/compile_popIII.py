@@ -8,7 +8,9 @@ def generate_nomoto(filepath = './nomoto_latex_table.dat'):
     Takes the Z=0 portion of Table 2 of Nomoto et. al. 2006
     and sums over all elemental isotopes to combine a table
     that gives yields for all elements from H to Bi and includes
-    a total yield and metal yield value
+    a total yield and metal yield value.
+
+    This spans metal free star masses from 13 to 40 Msun
     """
 
     raw_nomoto_yields = np.genfromtxt('nomoto_latex_table.dat',
@@ -47,9 +49,13 @@ def generate_nomoto(filepath = './nomoto_latex_table.dat'):
     return final_yields, masses
 
 
-def generate_heger(filepath = './heger_yields.dat'):
+def generate_heger_2002(filepath = './heger_yields.dat'):
     """
     Heger & Woosley 2002 - Table 3
+
+    Table gives yields in He core masses. Using Eq 1 in HW2002 to
+    convert this to progenitor masses. This spans
+    progenitor masses from 140 to 260 Msun.
 
     """
 # anum element 65 70 75 80 85 90 95 100 105 110 115 120 125 130
@@ -89,7 +95,9 @@ def generate_table(outname = './popIII_yields.dat'):
 
     nomoto_yields, nomoto_masses = generate_nomoto()
 
-    heger_yields,  heger_masses = generate_heger()
+    heger_yields,  heger_masses = generate_heger_2002()
+
+    print(heger_masses)
 
     # combine into a single table
 
