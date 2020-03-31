@@ -303,14 +303,19 @@ class Star(StarParticle):
                 #print "------------------------", self.sn_ejecta_masses
 
         else:
-            raise NotImplementedError
+            yields = np.zeros(len( list(self.wind_ejecta_abundances.keys())))
+#            for e in self.wind_ejecta_abundances.keys():
+#                self.sn_ejecta_masses[e] = 0.0
+#            print(self.M_o, config.stars.SNIa_candidate_mass_bounds, self.M)
+#            raise NotImplementedError
 
         return yields
 
-    def set_SNII_properties(self):
+    def set_SNII_properties(self, ignore_check=False):
 
-        if not config.stars.use_snII:
-            return
+        if not ignore_check:
+            if not config.stars.use_snII:
+                return
 
         if len(self.wind_ejecta_abundances.keys()) > 0:
 
@@ -333,10 +338,14 @@ class Star(StarParticle):
             for e in self.sn_ejecta_masses.keys():
                 self.sn_ejecta_masses[e] = yields[i]
                 i = i + 1
+#            if self.sn_ejecta_masses['O'] > 0.0:
+#                print(self.sn_ejecta_masses['O'], self.M_o)
 
         else:
             raise NotImplementedError
 
+
+        return
 
 
     @property
