@@ -117,7 +117,7 @@ class DataTable:
 
             if n == 1: # linear interpolation
 
-                yval = (1.0 - c[0]) * y[id[0]] + (c[0]) * y[id[0]]
+                yval = (1.0 - c[0]) * y[id[0]] + (c[0]) * y[id[0]+1]
 
             elif n == 2: # bilinear interpolation
                 i,j = id
