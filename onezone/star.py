@@ -168,6 +168,13 @@ class Star(StarParticle):
 
                 SN_mass_loss = 0.0
 
+            elif self.properties['type'] == 'popIII':
+
+                self.set_popIII_properties()
+                self.properties['type'] = 'new_popIII_remnant'
+                SN_mass_loss = self.sn_ejecta_masses['m_tot']
+                snII_counter += 1
+
             elif self.properties['type'] == 'star':
                 if self.M_o > config.stars.SNII_mass_threshold  and\
                    self.M_o < config.stars.direct_collapse_mass_threshold:
@@ -311,6 +318,24 @@ class Star(StarParticle):
 
         return yields
 
+    def set_popIII_properties(self, ignore_check=False):
+
+        if len(self.wind_ejecta_abundances.keys()) > 0:
+
+            if ( ((self.M_o >= config.stars.PopIIITypeIIMass[0]) and (self.M_o <= config.stars.PopIIITypeIIMass[1])) or\
+                 ((self.M_o >= config.stars.PopIIIPISNMass[0]) and (self.M_o <= config.stars.PopIIIPISNMass[1])) ):
+
+                yields = POPIII_YIELD_TABLE.interpolate([self.M_o], self.wind_ejecta_abundances.keys())
+
+            else:
+                yields = np.zeros(len(self.sn_ejecta_masses.keys()))
+
+            for i,e in enumerate(self.sn_ejecta_masses.keys()):
+                self.sn_ejecta_masses[e] = yields[i]
+
+
+        return
+
     def set_SNII_properties(self, ignore_check=False):
 
         if not ignore_check:
@@ -319,14 +344,22 @@ class Star(StarParticle):
 
         if len(self.wind_ejecta_abundances.keys()) > 0:
 
+
+            if self.Z < SN_YIELD_TABLE.x['metallicity'][0]:
+                interp_z = SN_YIELD_TABLE.x['metallicity'][0]
+            elif self.Z > SN_YIELD_TABLE.x['metallicity'][-1]:
+                interp_z = SN_YIELD_TABLE.x['metallicity'][-1]
+            else:
+                interp_z = self.Z
+
             if self.M_o < config.stars.direct_collapse_mass_threshold and\
                self.M_o > config.stars.SNII_mass_threshold :
 
                 if self.M_o < config.data.yields_mass_limits[1]:
-                    yields =  SN_YIELD_TABLE.interpolate([self.M_o, self.Z],
+                    yields =  SN_YIELD_TABLE.interpolate([self.M_o, interp_z],
                                                           self.wind_ejecta_abundances.keys())
                 elif config.stars.extrapolate_snII_yields:
-                    yields = np.asarray(SN_YIELD_TABLE.interpolate([config.data.yields_mass_limits[1] * _interpolation_hack, self.Z],
+                    yields = np.asarray(SN_YIELD_TABLE.interpolate([config.data.yields_mass_limits[1] * _interpolation_hack, interp_z],
                                                           self.wind_ejecta_abundances.keys()))
                     yields = yields * self.M_o / (config.data.yields_mass_limits[1] * _interpolation_hack)
 
@@ -479,12 +512,26 @@ class Star(StarParticle):
             atomic number order
         """
 
-
         if( self.M_o < config.data.yields_mass_limits[1] ):
+            if self.Z < WIND_YIELD_TABLE.x['metallicity'][0]:
+                interp_z = WIND_YIELD_TABLE.x['metallicity'][0]
+            elif self.Z > WIND_YIELD_TABLE.x['metallicity'][-1]:
+                interp_z = WIND_YIELD_TABLE.x['metallicity'][-1]
+            else:
+                interp_z = self.Z
+
 
             yields = np.asarray(WIND_YIELD_TABLE.interpolate([self.M_o, self.Z],
                                                               self.wind_ejecta_abundances.keys()))
         elif (config.stars.use_massive_star_yields):
+            if self.Z < MASSIVE_STAR_YIELD_TABLE.x['metallicity'][0]:
+                interp_z = MASSIVE_STAR_YIELD_TABLE.x['metallicity'][0]
+            elif self.Z > MASSIVE_STAR_YIELD_TABLE.x['metallicity'][-1]:
+                interp_z = MASSIVE_STAR_YIELD_TABLE.x['metallicity'][-1]
+            else:
+                interp_z = self.Z
+ 
+
             # use yields from PARSEC massive star yields
             yields = np.asarray(MASSIVE_STAR_YIELD_TABLE.interpolate([self.M_o, self.Z],
                                                                      self.wind_ejecta_abundances.keys()))
@@ -508,13 +555,20 @@ class Star(StarParticle):
                   'lifetime'  , 'age_agb', 'L_FUV', 'L_LW', 'agb_phase_length',
                   'Q0', 'E0', 'Q1', 'E1', 'Mdot_wind', 'v_wind', 'M_wind_total']
 
-        if self.properties['type'] == 'unresolved_star':
+        if self.properties['type'] == 'unresolved_star' or self.properties['type'] == 'popIII':
             self.Mdot_ej           = 0.0
             for p in p_list:
                 self.properties[p] = 0.0
             return
 
-        L, T, R, lifetime, self.age_agb = SE_TABLE.interpolate([self.M_o,self.Z], ['L','Teff','R','lifetime','age_agb'])
+        if self.Z < SE_TABLE.x['metallicity'][0]:
+            interp_z = SE_TABLE.x['metallicity'][0]
+        elif self.Z > SE_TABLE.x['metallicity'][-1]:
+            interp_z = SE_TABLE.x['metallicity'][-1]
+        else:
+            interp_z = self.Z
+
+        L, T, R, lifetime, self.age_agb = SE_TABLE.interpolate([self.M_o,interp_z], ['L','Teff','R','lifetime','age_agb'])
         self.properties['luminosity']  = L * const.Lsun
         self.properties['Teff']        = T
         self.properties['R']           = R
