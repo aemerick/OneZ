@@ -346,6 +346,9 @@ class _star_particle_parameters(_parameters):
         self.use_massive_star_yields        = True
 
 
+        self.PopIIITypeIIMass = [11.0,40.0]
+        self.PopIIIPISNMass   = [140.0, 260.0]
+
         self.normalize_black_body_to_OSTAR = True
         self.black_body_correction_mass    = 20.0
         self.black_body_q0_factors         = const.black_body_q0
