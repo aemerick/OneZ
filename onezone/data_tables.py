@@ -567,3 +567,19 @@ class StellarYieldsTable(DataTable):
         # return only the array, not full dictionary
         # can get away with just .values() since using OrderedDict
         return list(dict_output.values())
+
+    def _interpolate_yield_ratio(self,ele1, ele2, vals):
+
+        from galaxy_analysis.utilities import convert_abundances as convert
+
+        y1 = self.interpolate(vals, [ele1])[0]
+        y2 = self.interpolate(vals, [ele2])[0]
+
+        return convert.abundance_ratio( (ele1,y1), (ele2,y2), input_type='mass')
+
+    def interpolate_yield_ratio(self,ele1, ele2, vals):
+
+        if isinstance(vals, tuple):
+            return self._interpolate_yield_ratio(ele1,ele2,vals)
+        else:
+            return np.array([self._interpolate_yield_ratio( ele1, ele2, v) for v in vals])
