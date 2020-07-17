@@ -13,7 +13,7 @@ Currently working on porting the slowest chunks of the code to cython to
 get some actual speed improvements to be able to run this for more useful
 science. Things are still very rough, with changes to the API at all levels
 still likely (backwards compatability will not be garunteed for a while). 
-Code ported to Python3 now (in python3 branch at the moment).
+Code ported to Python3 now
 
 Prior state (Oct 2016):
 
