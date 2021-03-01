@@ -30,7 +30,7 @@ class _parameters(object):
 
 class _globals(_parameters):
     """
-    Glbal vals
+    Global values for setting code behavior
     """
 
     def __init__(self):
@@ -70,16 +70,13 @@ class _units(_parameters):
         self.time      = const.yr_to_s * 1.0E6
         self.mass      = 1.0
 
+        # cosmology parameters for comologically evolving runs
         self.omega_b = 0.0463
         self.omega_c = 0.2330
         self.omega_v = 0.7210
         self.omega_r = 1.0E-4
-
         self.omega_m = self.omega_c + self.omega_b
         self.omega   = self.omega_m + self.omega_v + self.omega_r
-
-#        self.omega_matter = 0.258 # WMAP 5 year
-#        self.omega_lambda = 0.742 # WMAP 5 year
         self.H_o          = 69.32 # km / s / Mpc
 
 
@@ -87,11 +84,17 @@ class _units(_parameters):
         return
 
     def H_a(self, a):
+        """
+        Return the hubble constant H given the cosmic acceleration a
+        """
         H = self.H_o * np.sqrt((self.omega_v + self.omega_m*a**(-3) +\
                             self.omega_r*a**(-4) - (self.omega-1.0)*a**(-2)))
         return H
 
     def hubble_time(self, z):
+        """
+        Return the hubble time in time units given the cosmic acceleration a
+        """
         a = 1.0 / (1.0 + z)
         return (1.0 / (self.H_a(a) * (const.km) / (const.Mpc))) / (self.time)
 
@@ -115,6 +118,7 @@ class _zone_parameters(_parameters):
         initial_metallicity (float)      : initial gas metal fraction
         dt (float)                       : constant timestep size in code time
         t_final (float)                  : time to end simulation
+        species_to_track (dict)          : list of elements (by symbol) to follow
 
 
         Suggested Parameters:
@@ -134,6 +138,13 @@ class _zone_parameters(_parameters):
                time and stellar mass. Column headers must be named
                appropriately as ("t" or "SFR" or "mass"). Time is assumed to be in Myr
                and SFR is assumed to be in Msun / yr (regardless of code units).
+
+        constant_SFR (float) : For star_formation_method == 1, sets the SFR in
+               units of code mass / code time (Msun/Myr by default). Default : 10
+
+        SFR_filename (string) : For star_formation_method == 4, the filename
+               with columns "t" and "SFR" of the tabulated SFR. Columns must have
+               units of Myr and Msun / yr. Default : 'SFR.in'
 
          use_SF_mass_reservoir (bool , optional) : One of two ways to deal with low
              SFR's to ensure accurate sampling of the IMF (see the second
@@ -166,6 +177,10 @@ class _zone_parameters(_parameters):
          inflow_factor  (float, optional) : Sets the mass inflow rate as a function of
              the star formation rate. Default 0.05
 
+        mass_outflow_method (int, optional): Determines the outflow method. O : off,
+             1 : constant outflow using mass_loading_factor, 2: read outflow rate from file
+             outflow_filename with columns "t" and ""
+
          mass_loading_factor (float, optional) : Sets the mass outlflow rate as a function of
              the star formation rate. Default 0.1
 
@@ -177,6 +192,11 @@ class _zone_parameters(_parameters):
 
          t_o     (float, optional) : initial time. Default is 0.0
          t_final (float, optional) : simulation end time. Default is 10 Gyr
+         initial_abundances (dict, optional) : dictionary of element name and initial abundance
+                                     of that element. Default : None
+         track_massive_star_ejecta_mass (float, optional): Mass threshold in Msun above which
+                    ejecta is tracked separately as "massive" stars. Default : 25.0
+
 
     """
 
